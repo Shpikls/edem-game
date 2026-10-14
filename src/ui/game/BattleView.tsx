@@ -164,8 +164,7 @@ export function BattleView({ run, battle, onNext }: Props) {
       const lethal = holdRef.current
       setT((prev) => {
         if (jumpRef.current) return jumpRef.current.at
-        if (lethal === null)
-          return Math.min(result.durationMs + TAIL_MS, prev + dt)
+        if (lethal === null) return prev + dt // keeps running so the wreck drifts
         const slowFrom = Math.max(0, lethal - SLOWMO_SPAN_MS)
         if (cdStart.current === null) {
           const next = Math.min(slowFrom, prev + dt)

@@ -3457,3 +3457,23 @@ button:disabled:hover {
   background: var(--paper);
   box-shadow: 0 -12px 30px rgb(6 22 46 / 0.6);
 }
+
+.end-a__stamp {
+  background: var(--paper);
+  box-shadow: 0 6px 30px rgb(6 22 46 / 0.6);
+}
+
+/* let the wreck show through: lighter backdrop */
+.end-a {
+  background: radial-gradient(
+    ellipse at center,
+    rgb(6 22 46 / 0.25),
+    rgb(6 22 46 / 0.8) 75%
+  );
+}
+
+.end-a__tap {
+  background: var(--paper);
+  padding: 8px 16px;
+  border: 1px solid var(--ink-faint);
+}

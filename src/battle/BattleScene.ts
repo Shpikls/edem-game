@@ -445,7 +445,7 @@ export class BattleScene {
         s ? (noise(t) - 0.5) * s * 2 : 0,
         s ? (noise(t + 3) - 0.5) * s * 2 : 0,
       )
-      if (dead && age < EXPLOSION_MS) this.drawWreck(side, age)
+      if (dead) this.drawWreck(side, age)
     }
 
     if (this.jumpAge !== null) this.drawJump(this.jumpAge)
@@ -537,8 +537,9 @@ export class BattleScene {
     const data = this.shipsData[side]
     const color = side === 'enemy' ? AMBER : INK
     const T = EXPLOSION_MS
-    const k = age / T
-    const fade = 1 - k
+    // The blast settles after T; the wreck then stays, slowly drifting (like the salvage screen).
+    const k = Math.min(1, age / T)
+    const fade = 1 - k * 0.45
     const seed = side === 'enemy' ? 500 : 0
     const moduleCells = new Set<string>()
     for (const m of data.modules)
@@ -557,11 +558,16 @@ export class BattleScene {
       const dx = ox - ship.center.x + (noise(seed + i) - 0.5) * ship.cell
       const dy = oy - ship.center.y + (noise(seed + i + 50) - 0.5) * ship.cell
       const len = Math.hypot(dx, dy) || 1
-      const speed = 0.04 + noise(seed + i * 3) * 0.08
-      const dist = speed * age * (1 - k / 2) // decelerating drift
+      // modest spread: the wreck should still read as a broken ship
+      const speed = 0.015 + noise(seed + i * 3) * 0.03
+      const settle = Math.min(age, T)
+      const dist = speed * settle * (1 - k / 2) // decelerating drift
+      const bob = age > T ? Math.sin((age - T) / 900 + i) * 2 : 0
       const x = ox + (dx / len) * dist
-      const y = oy + (dy / len) * dist
-      const rot = (noise(seed + i * 7) - 0.5) * k * 4
+      const y = oy + (dy / len) * dist + bob
+      const rot =
+        (noise(seed + i * 7) - 0.5) * k * 4 +
+        (age > T ? Math.sin((age - T) / 1400 + i * 2) * 0.05 : 0)
       const h = ship.cell * 0.44
       const pts = [
         [-h, -h],
