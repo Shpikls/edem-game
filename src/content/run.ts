@@ -6,7 +6,7 @@ import { frigate } from './ships.ts'
 // First-pass numbers, tune by playing.
 export const runConfig: RunConfig = {
   rounds: 10,
-  lives: 5,
+  lives: 1,
   // ~1–2 modules per round: prices are 2–4.
   startGold: 6,
   income: 3,
@@ -19,9 +19,9 @@ export const runConfig: RunConfig = {
   // a single bought weapon carries you to the second station.
   enemyBudget: (level) => (level <= 2 ? 3 : 4 + 3 * (level - 1)),
   enemyHullHp: (level) => (level <= 2 ? 50 + 10 * level : 80 + 8 * level),
-  // Comeback: a loss gives gold and an emergency station, and doesn't raise the enemy level.
+  // Comeback: a loss pays gold and doesn't raise the enemy level.
   lossBonus: 2,
-  stationAfterLoss: true,
+  // The ship has one life and two emergency jumps.
   jumpCharges: 2,
   tierMultiplier: [1, 1.5, 2],
   // No stars early; ★★ from round 4, ★★★ from round 5, frequent near the end.

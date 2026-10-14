@@ -15,7 +15,7 @@ import { Shipyard } from './Shipyard.tsx'
 const newRun = () => createRun(runContext, Math.floor(Math.random() * 2 ** 31))
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v8', newRun())
+  const [run, setRun] = usePersistentState<RunState>('game.run.v9', newRun())
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
   const dispatch = (action: RunAction) =>
@@ -32,20 +32,20 @@ export function Game() {
         <span>
           раунд <b>{run.round}</b>/{config.rounds}
         </span>
-        <span className="lives">
-          жизни
-          {Array.from({ length: config.lives }, (_, i) => (
-            <i key={i} className={i < shown.lives ? 'on' : ''} />
-          ))}
-        </span>
         <span>
           золото <b>{shown.gold}</b>
         </span>
         <span>
           побед <b>{shown.wins}</b>
         </span>
-        <span title="аварийные прыжки: выйти из боя без потери жизни, корабль восстановится">
-          прыжки <b>{'⚡'.repeat(run.jumps) || '—'}</b>
+        <span
+          className="lives"
+          title="аварийные прыжки — жизни корабля: поражение не уничтожает корабль, а уводит его в прыжок"
+        >
+          прыжки
+          {Array.from({ length: config.jumpCharges }, (_, i) => (
+            <i key={i} className={i < shown.jumps ? 'on' : ''} />
+          ))}
         </span>
         <button
           className="link-button"
@@ -74,15 +74,14 @@ export function Game() {
           run={run}
           battle={run.lastBattle}
           onNext={() => dispatch({ type: 'next' })}
-          onJump={() => dispatch({ type: 'jump' })}
         />
       )}
 
       {run.phase === 'over' && (
         <Sheet num="—" title="Забег окончен">
           <p className="verdict-big">
-            {run.lives > 0 ? 'Флот выстоял' : 'Флот потерян'} · побед {run.wins}{' '}
-            из {run.round}
+            {run.lives > 0 ? 'Корабль выстоял' : 'Корабль уничтожен'} · побед{' '}
+            {run.wins} из {run.round}
           </p>
           <button className="stamp" onClick={() => setRun(newRun())}>
             Новый забег

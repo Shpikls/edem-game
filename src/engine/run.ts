@@ -31,9 +31,11 @@ export interface RunConfig {
   enemyHullHp: (level: number) => number
   /** Extra gold after a lost battle. */
   lossBonus: number
-  /** After a loss the next round always has a station (repair + shop). */
-  stationAfterLoss: boolean
-  /** Emergency jumps per run: leave a battle, keep the life, ship fully restored. */
+  /**
+   * Emergency jumps per run — effectively the ship's lives. A lost battle
+   * triggers one automatically: the ship escapes, is fully repaired and
+   * retries the same mission. With none left, a loss destroys the ship.
+   */
   jumpCharges: number
   /** Stat multiplier per tier: [Mk I, Mk II, Mk III]. */
   tierMultiplier: readonly [number, number, number]
@@ -96,8 +98,10 @@ export interface Battle {
   newCracks: string[]
   /** Won → the enemy wreck can be searched. */
   salvageWon: boolean
-  /** Run values before the fight's consequences, restored by an emergency jump. */
-  before: Pick<RunState, 'wins' | 'gold' | 'lives' | 'salvage'>
+  /** Lost, but an emergency jump saved the ship (played before the killing blow). */
+  autoJump: boolean
+  /** Run values before the fight, shown until the battle is resolved. */
+  before: Pick<RunState, 'wins' | 'gold' | 'lives' | 'salvage' | 'jumps'>
 }
 
 export interface RunState {
@@ -145,8 +149,6 @@ export type RunAction =
   | { type: 'repair'; cell: string }
   | { type: 'repairAll' }
   | { type: 'searchWreck' }
-  /** Before the killing blow: jump out — no life lost, all cracks repaired, same mission. */
-  | { type: 'jump' }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
 
@@ -299,9 +301,7 @@ function rollEnemy(ctx: RunContext, rngState: number, level: number) {
 }
 
 function startRound(ctx: RunContext, state: RunState, round: number): RunState {
-  const lostLast = state.lastBattle?.result.winner === 'enemy'
-  const station =
-    isStationRound(ctx, round) || (ctx.config.stationAfterLoss && lostLast)
+  const station = isStationRound(ctx, round)
   const shop = station
     ? rollShop(
         ctx,
@@ -367,21 +367,10 @@ export function reduceRun(
   if (state.phase === 'over') return state
 
   if (state.phase === 'battle') {
-    if (action.type === 'jump') {
-      const battle = state.lastBattle
-      if (!battle || state.jumps <= 0) return state
-      // Undo the fight, repair everything and return to the same mission:
-      // same round, same enemy, time to rearrange the hull.
-      return {
-        ...state,
-        ...battle.before,
-        phase: 'shop',
-        cracks: [],
-        jumps: state.jumps - 1,
-        jumped: true,
-      }
-    }
     if (action.type !== 'next') return state
+    // Saved by an emergency jump: back to the same mission, ship repaired.
+    if (state.lastBattle?.autoJump)
+      return { ...state, phase: 'shop', jumped: true }
     const over = state.lives <= 0 || state.round >= ctx.config.rounds
     if (over) return { ...state, phase: 'over' }
     return startRound(
@@ -484,6 +473,7 @@ export function reduceRun(
       const result = simulate(player, state.enemy, battleSeed, ctx.rules)
       const won = result.winner === 'player'
       const lost = result.winner === 'enemy'
+      const autoJump = lost && state.jumps > 0
 
       // Hull damage taken → that many random intact cells crack.
       let hullLeft = player.hullHp
@@ -521,11 +511,13 @@ export function reduceRun(
           fielded,
           newCracks,
           salvageWon: won,
+          autoJump,
           before: {
             wins: state.wins,
             gold: state.gold,
             lives: state.lives,
             salvage: state.salvage,
+            jumps: state.jumps,
           },
         },
         wins: state.wins + (won ? 1 : 0),
@@ -533,8 +525,10 @@ export function reduceRun(
           state.gold +
           (won ? ctx.config.winBonus : 0) +
           (lost ? ctx.config.lossBonus : 0),
-        lives: state.lives - (lost ? 1 : 0),
-        cracks: [...state.cracks, ...newCracks],
+        lives: state.lives - (lost && !autoJump ? 1 : 0),
+        jumps: state.jumps - (autoJump ? 1 : 0),
+        // The emergency system restores the whole ship after a jump.
+        cracks: autoJump ? [] : [...state.cracks, ...newCracks],
         salvage: won
           ? [
               ...state.salvage,
@@ -585,7 +579,6 @@ export function reduceRun(
       }
     }
     case 'next':
-    case 'jump':
       return state
   }
 }

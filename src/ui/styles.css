@@ -2596,3 +2596,8 @@ button:disabled:hover {
   height: 42px;
   min-width: 140px;
 }
+
+.lives i.on {
+  background: #a8dcff;
+  border-color: #a8dcff;
+}

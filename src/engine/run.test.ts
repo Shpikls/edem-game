@@ -60,8 +60,7 @@ const ctx: RunContext = {
     repairCost: 2,
     stationEvery: 1,
     lossBonus: 0,
-    stationAfterLoss: false,
-    jumpCharges: 2,
+    jumpCharges: 0,
     stationEveryRoundFrom: 100,
     shopTierOdds: () => [1, 0, 0],
     tierPriceMultiplier: [1, 1.5, 2],
@@ -327,61 +326,54 @@ test('late game: a station every round, star offers cost more', () => {
   }
 })
 
-describe('comeback after a loss', () => {
+describe("emergency jumps are the ship's lives", () => {
   const gunsOnly = { ...ctx, catalog: ctx.catalog.slice(0, 1) }
-  const comeback = {
+  const cfg = {
     ...gunsOnly,
     config: {
       ...gunsOnly.config,
-      stationEvery: 2,
+      lives: 1,
+      jumpCharges: 2,
       lossBonus: 2,
-      stationAfterLoss: true,
-      lives: 10,
       rounds: 10,
       enemyBudget: (level: number) => level * 3,
     },
   }
 
-  test('a loss pays out, forces a station and keeps the enemy level', () => {
-    let s = createRun(comeback, 1)
-    const enemyBefore = s.enemy.modules.length
-    s = reduceRun(comeback, s, { type: 'fight' }) // empty ship loses
-    expect(s.lastBattle!.result.winner).toBe('enemy')
-    const gold = s.gold
-    s = reduceRun(comeback, s, { type: 'next' })
-    expect(gold).toBe(comeback.config.startGold + 2)
-    expect(s.round).toBe(2)
-    expect(s.station).toBe(true) // round 2 is normally not a station
-    expect(s.enemy.modules.length).toBe(enemyBefore) // still level 1
-  })
-})
-
-describe('emergency jump', () => {
-  const gunsOnly = { ...ctx, catalog: ctx.catalog.slice(0, 1) }
-  const cfg = {
-    ...gunsOnly,
-    config: { ...gunsOnly.config, stationEvery: 2, lives: 5, rounds: 10 },
-  }
-
-  test('jumping out keeps the life, repairs all and returns to the same mission', () => {
+  test('a loss auto-jumps: ship repaired, same mission, +gold, enemy level kept', () => {
     let s = { ...createRun(cfg, 1), cracks: ['0,0', '1,1'] }
     const enemy = s.enemy
     s = reduceRun(cfg, s, { type: 'fight' }) // empty ship loses
-    expect(s.lives).toBe(4)
-    s = reduceRun(cfg, s, { type: 'jump' })
+    expect(s.lastBattle!.autoJump).toBe(true)
+    expect(s.lives).toBe(1)
+    expect(s.jumps).toBe(1)
+    expect(s.cracks).toEqual([])
+    s = reduceRun(cfg, s, { type: 'next' })
     expect(s.phase).toBe('shop')
     expect(s.round).toBe(1)
     expect(s.enemy).toEqual(enemy)
-    expect(s.lives).toBe(5)
-    expect(s.cracks).toEqual([])
-    expect(s.jumps).toBe(1)
-    expect(s.gold).toBe(cfg.config.startGold)
+    expect(s.gold).toBe(cfg.config.startGold + 2)
     expect(s.jumped).toBe(true)
   })
 
-  test('no jumps left → jump is ignored', () => {
+  test('with no jumps left a loss destroys the ship and ends the run', () => {
     let s = { ...createRun(cfg, 1), jumps: 0 }
     s = reduceRun(cfg, s, { type: 'fight' })
-    expect(reduceRun(cfg, s, { type: 'jump' })).toBe(s)
+    expect(s.lastBattle!.autoJump).toBe(false)
+    expect(s.lives).toBe(0)
+    s = reduceRun(cfg, s, { type: 'next' })
+    expect(s.phase).toBe('over')
+  })
+
+  test('three losses in a row: two jumps, then destroyed', () => {
+    let s = createRun(cfg, 1)
+    const outcomes: boolean[] = []
+    while (s.phase !== 'over') {
+      s = reduceRun(cfg, s, { type: 'fight' })
+      outcomes.push(s.lastBattle!.autoJump)
+      s = reduceRun(cfg, s, { type: 'next' })
+    }
+    expect(outcomes).toEqual([true, true, false])
+    expect(s.round).toBe(1)
   })
 })

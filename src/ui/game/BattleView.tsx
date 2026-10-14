@@ -16,7 +16,6 @@ interface Props {
   run: RunState
   battle: Battle
   onNext: () => void
-  onJump: () => void
 }
 
 /** Same as BattleScene.JUMP_MS; kept here so Pixi stays lazy-loaded. */
@@ -85,15 +84,16 @@ function sceneShips(run: RunState, battle: Battle): Record<Side, SceneShip> {
   }
 }
 
-export function BattleView({ run, battle, onNext, onJump }: Props) {
+export function BattleView({ run, battle, onNext }: Props) {
   const { result } = battle
   const [speed, setSpeed] = useState(1)
   const [t, setT] = useState(0)
   // Emergency jump: combat time freezes at `at`, the jump animation runs for JUMP_MS.
   const [jump, setJump] = useState<{ at: number; start: number } | null>(null)
-  // The killing blow on the player: playback pauses just before it to offer a jump.
+  const [jumpedOut, setJumpedOut] = useState(false)
+  // Lost with a jump in reserve: right before the killing blow the ship jumps out.
   const lethalAt = useMemo(() => {
-    if (run.jumps <= 0) return null
+    if (!battle.autoJump) return null
     const e = result.events.find(
       (e) =>
         (e.type === 'hit' || e.type === 'overheat') &&
@@ -101,8 +101,7 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
         e.hullHp <= 0,
     )
     return e ? Math.max(0, e.t - 1) : null
-  }, [result, run.jumps])
-  const [declined, setDeclined] = useState(false)
+  }, [result, battle.autoJump])
   const speedRef = useRef(speed)
   useEffect(() => {
     speedRef.current = speed
@@ -110,13 +109,10 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
 
   const stageRef = useRef<HTMLDivElement>(null)
   const jumpRef = useRef(jump)
-  const jumpDone = useRef(false)
-  const onJumpRef = useRef(onJump)
   const holdRef = useRef<number | null>(null)
-  const hold = lethalAt !== null && !declined ? lethalAt : null
+  const hold = lethalAt
   useEffect(() => {
     jumpRef.current = jump
-    onJumpRef.current = onJump
     holdRef.current = hold
   })
   const sceneRef = useRef<BattleScene | null>(null)
@@ -160,15 +156,22 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
       setT((prev) => {
         if (jumpRef.current) return jumpRef.current.at
         const limit = holdRef.current ?? result.durationMs + TAIL_MS
-        return Math.min(limit, prev + dt)
+        const next = Math.min(limit, prev + dt)
+        // Reached the killing blow → the emergency system fires.
+        if (
+          holdRef.current !== null &&
+          next >= holdRef.current &&
+          !jumpRef.current
+        ) {
+          jumpRef.current = { at: holdRef.current, start: now }
+          setJump(jumpRef.current)
+        }
+        return next
       })
       if (jumpRef.current) {
         const age = now - jumpRef.current.start
-        sceneRef.current?.setJump(age)
-        if (age >= JUMP_MS && !jumpDone.current) {
-          jumpDone.current = true
-          onJumpRef.current()
-        }
+        sceneRef.current?.setJump(Math.min(JUMP_MS, age))
+        if (age >= JUMP_MS) setJumpedOut(true)
       }
       frame = requestAnimationFrame(tick)
     }
@@ -180,10 +183,9 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
     sceneRef.current?.render(t)
   }, [t])
 
-  const done = t >= result.durationMs
-  const critical = hold !== null && t >= hold && !jump
+  const done = t >= result.durationMs || jumpedOut
   // "Next" waits for the wreck animation to play out.
-  const finished = t >= result.durationMs + TAIL_MS - 100
+  const finished = t >= result.durationMs + TAIL_MS - 100 || jumpedOut
   const view = stateAt(battle, t)
   const log = result.events
     .filter((e) => e.t <= t && e.type !== 'shieldRegen')
@@ -200,9 +202,11 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
             <span className={`verdict verdict--${result.winner}`}>
               {result.winner === 'player'
                 ? `победа +${runContext.config.winBonus} зол.`
-                : result.winner === 'enemy'
-                  ? `поражение −1 жизнь · +${runContext.config.lossBonus} зол.`
-                  : 'ничья'}
+                : battle.autoJump
+                  ? `аварийный прыжок · +${runContext.config.lossBonus} зол.`
+                  : result.winner === 'enemy'
+                    ? 'корабль уничтожен'
+                    : 'ничья'}
             </span>
           ) : undefined
         }
@@ -223,36 +227,19 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
         </div>
         <div className="battle__stage" ref={stageRef}>
           {jump && <div className="jump-overlay">аварийный прыжок</div>}
-          {critical && (
-            <div className="critical">
-              <div className="critical__title">корпус критичен</div>
-              <p className="note">
-                следующее попадание уничтожит корабль. Аварийный прыжок вернёт
-                на верфь к этой же миссии и восстановит корабль.
-              </p>
-              <div className="critical__actions">
-                <button
-                  className="jump-button"
-                  onClick={() =>
-                    setJump({ at: hold, start: performance.now() })
-                  }
-                >
-                  ⚡ прыжок · осталось {run.jumps}
-                </button>
-                <button onClick={() => setDeclined(true)}>принять бой</button>
-              </div>
-            </div>
-          )}
         </div>
         {done && (
           <p className="battle__summary">
-            {battle.newCracks.length > 0
-              ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')} — ремонт на верфи`
-              : 'корпус цел'}
+            {battle.autoJump
+              ? 'аварийная система сработала перед смертельным ударом'
+              : result.winner === 'enemy'
+                ? 'аварийных прыжков не осталось'
+                : battle.newCracks.length > 0
+                  ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')} — ремонт на верфи`
+                  : 'корпус цел'}
             {battle.salvageWon && ' · обломки врага можно обыскать'}
-            {result.winner === 'enemy' &&
-              runContext.config.stationAfterLoss &&
-              ' · дальше аварийная стоянка: ремонт и магазин'}
+            {battle.autoJump &&
+              ` · корабль спасён и восстановлен, прыжков осталось: ${run.jumps}. Миссия та же`}
           </p>
         )}
         <div className="controls__row battle__controls">
@@ -265,7 +252,7 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
               x{s}
             </button>
           ))}
-          {!finished && !jump && !critical && (
+          {!finished && !jump && (
             <button
               onClick={() =>
                 setT(
@@ -282,7 +269,8 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
           )}
           {finished && (
             <button className="stamp" onClick={onNext}>
-              {run.lives <= 0 || run.round >= runContext.config.rounds
+              {!battle.autoJump &&
+              (run.lives <= 0 || run.round >= runContext.config.rounds)
                 ? 'Итоги'
                 : 'Дальше'}
             </button>
