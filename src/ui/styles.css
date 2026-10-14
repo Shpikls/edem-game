@@ -1992,3 +1992,34 @@ button:disabled:hover {
     letter-spacing: 0.04em;
   }
 }
+
+/* The hull grid must never stretch: overlays are positioned in --cell units. */
+.hull-grid {
+  align-content: start;
+  justify-content: start;
+  height: max-content;
+  width: max-content;
+}
+
+.yard .hull-wrap {
+  align-self: flex-start;
+}
+
+/* A long bench scrolls instead of stretching the yard. */
+.bench {
+  max-height: calc(var(--cell) * 8);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 760px) {
+  .bench {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+.bench__item {
+  min-height: 48px;
+  flex: none;
+}
