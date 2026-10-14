@@ -492,7 +492,14 @@ export class BattleScene {
     const spool = Math.min(1, age / JUMP_SPOOL_MS)
     const fly = Math.max(0, (age - JUMP_SPOOL_MS) / (JUMP_MS - JUMP_SPOOL_MS))
     const dist = fly * fly * (ship.center.x + ship.radius.x * 2 + W * 0.2)
-    ship.root.pivot.x = dist
+    // Spool-up: the ship turns around (nose away from the enemy), then jumps nose-first.
+    const turn = spool < 0.5 ? 2 * spool * spool : 1 - (-2 * spool + 2) ** 2 / 2
+    ship.root.pivot.set(
+      (ship.width * ship.cell) / 2,
+      (ship.height * ship.cell) / 2,
+    )
+    ship.root.position.set(ship.center.x - dist, ship.center.y)
+    ship.root.rotation = Math.PI * turn
     ship.root.alpha = 1 - Math.max(0, fly - 0.6) / 0.4
     const cx = ship.center.x - dist
     const cy = ship.center.y
