@@ -1,5 +1,5 @@
-import type { Placement, Rotation, Shape } from './grid.ts'
-import { autoPlace, checkPlacement } from './grid.ts'
+import type { Cell, Placement, Rotation, Shape } from './grid.ts'
+import { autoPlace, checkPlacement, placedCells } from './grid.ts'
 import { createRng } from './rng.ts'
 import { simulate } from './simulate.ts'
 import type { BattleResult, BattleRules, ModuleStats, Ship } from './types.ts'
@@ -25,7 +25,16 @@ export interface RunConfig {
   /** Enemy gold budget for a 1-based round. */
   enemyBudget: (round: number) => number
   enemyHullHp: (round: number) => number
+  /** Stat multiplier per tier: [Mk I, Mk II, Mk III]. */
+  tierMultiplier: readonly [number, number, number]
+  /** Chance of each tier when opening a crate; sums to 1. */
+  crateOdds: readonly [number, number, number]
+  /** One hull cell cracks per this much hull damage taken in a battle. */
+  damagePerCrack: number
+  repairCost: number
 }
+
+export type Tier = 1 | 2 | 3
 
 export interface RunContext {
   catalog: readonly CatalogEntry[]
@@ -37,6 +46,8 @@ export interface RunContext {
 export interface Item {
   uid: string
   defId: string
+  /** Mk I–III; absent means Mk I. */
+  tier?: Tier
 }
 
 export interface PlacedItem extends Item {
@@ -49,6 +60,11 @@ export interface Battle {
   player: Ship
   enemy: Ship
   result: BattleResult
+  /** Placed items that fought, with their engine ids (modules on cracked cells sit out). */
+  fielded: { uid: string; id: string }[]
+  /** Cells cracked by this battle (keys 'x,y'). */
+  newCracks: string[]
+  crateWon: boolean
 }
 
 export interface RunState {
@@ -66,6 +82,10 @@ export interface RunState {
   enemy: Ship
   lastBattle: Battle | null
   nextUid: number
+  /** Cracked hull cells ('x,y'): nothing can be placed there, modules on them don't fight. */
+  cracks: string[]
+  /** Unopened loot crates. */
+  crates: number
 }
 
 export type RunAction =
@@ -81,6 +101,9 @@ export type RunAction =
   | { type: 'sell'; uid: string }
   | { type: 'fight' }
   | { type: 'next' }
+  | { type: 'repair'; cell: string }
+  | { type: 'repairAll' }
+  | { type: 'openCrate' }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
 
@@ -90,21 +113,61 @@ const entry = (ctx: RunContext, defId: string): CatalogEntry => {
   return e
 }
 
+export const cellKey = (c: Cell) => `${c.x},${c.y}`
+
+export function scaleStats(stats: ModuleStats, m: number): ModuleStats {
+  const r = (v: number) => Math.round(v * m)
+  switch (stats.kind) {
+    case 'weapon':
+      return { ...stats, damage: r(stats.damage) }
+    case 'shield':
+      return {
+        ...stats,
+        capacity: r(stats.capacity),
+        regenAmount: r(stats.regenAmount),
+      }
+    case 'armor':
+      return { ...stats, armor: r(stats.armor) }
+  }
+}
+
+export function itemStats(
+  ctx: RunContext,
+  item: { defId: string; tier?: Tier },
+): ModuleStats {
+  const base = entry(ctx, item.defId).stats
+  const tier = item.tier ?? 1
+  return tier === 1
+    ? base
+    : scaleStats(base, ctx.config.tierMultiplier[tier - 1]!)
+}
+
 /** Ship from modules; engine ids are 'defId#n' numbered in list order. */
 export function buildShip(
   ctx: RunContext,
   hullHp: number,
-  defIds: readonly string[],
+  items: readonly (string | { defId: string; tier?: Tier })[],
 ): Ship {
   const counts = new Map<string, number>()
   return {
     hullHp,
-    modules: defIds.map((defId) => {
-      const n = (counts.get(defId) ?? 0) + 1
-      counts.set(defId, n)
-      return { id: `${defId}#${n}`, stats: entry(ctx, defId).stats }
+    modules: items.map((item) => {
+      const it = typeof item === 'string' ? { defId: item } : item
+      const n = (counts.get(it.defId) ?? 0) + 1
+      counts.set(it.defId, n)
+      return { id: `${it.defId}#${n}`, stats: itemStats(ctx, it) }
     }),
   }
+}
+
+/** Is any cell of this placed item cracked? */
+export function isCracked(
+  ctx: RunContext,
+  state: RunState,
+  p: PlacedItem,
+): boolean {
+  const cracks = new Set(state.cracks)
+  return placedCells(toPlacement(ctx, p)).some((c) => cracks.has(cellKey(c)))
 }
 
 function rollShop(ctx: RunContext, rngState: number) {
@@ -176,9 +239,14 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     enemy: { hullHp: 1, modules: [] },
     lastBattle: null,
     nextUid: 1,
+    cracks: [],
+    crates: 0,
   }
   return startRound(ctx, base, 1)
 }
+
+const toItem = ({ uid, defId, tier }: Item): Item =>
+  tier && tier > 1 ? { uid, defId, tier } : { uid, defId }
 
 const toPlacement = (ctx: RunContext, p: PlacedItem): Placement => ({
   id: p.uid,
@@ -241,15 +309,15 @@ export function reduceRun(
         state.placed.find((i) => i.uid === action.uid)
       if (!item) return state
       const candidate: PlacedItem = {
-        uid: item.uid,
-        defId: item.defId,
+        ...item,
         x: action.x,
         y: action.y,
         rotation: action.rotation,
       }
       const others = state.placed.filter((p) => p.uid !== item.uid)
+      const cracks = new Set(state.cracks)
       const check = checkPlacement(
-        ctx.hull,
+        ctx.hull.filter((c) => !cracks.has(cellKey(c))),
         others.map((p) => toPlacement(ctx, p)),
         toPlacement(ctx, candidate),
       )
@@ -266,7 +334,7 @@ export function reduceRun(
       return {
         ...state,
         placed: state.placed.filter((p) => p.uid !== action.uid),
-        bench: [...state.bench, { uid: item.uid, defId: item.defId }],
+        bench: [...state.bench, toItem(item)],
       }
     }
     case 'sell': {
@@ -276,7 +344,9 @@ export function reduceRun(
       if (!item) return state
       return {
         ...state,
-        gold: state.gold + sellPrice(entry(ctx, item.defId).price),
+        gold:
+          state.gold +
+          sellPrice(entry(ctx, item.defId).price) * (item.tier ?? 1),
         bench: state.bench.filter((i) => i.uid !== action.uid),
         placed: state.placed.filter((p) => p.uid !== action.uid),
       }
@@ -284,22 +354,86 @@ export function reduceRun(
     case 'fight': {
       const rng = createRng(state.rngState)
       const battleSeed = rng.int(0, 2 ** 31 - 1)
-      const player = buildShip(
-        ctx,
-        ctx.config.hullHp,
-        state.placed.map((p) => p.defId),
-      )
+      const active = state.placed.filter((p) => !isCracked(ctx, state, p))
+      const player = buildShip(ctx, ctx.config.hullHp, active)
+      const fielded = active.map((p, i) => ({
+        uid: p.uid,
+        id: player.modules[i]!.id,
+      }))
       const result = simulate(player, state.enemy, battleSeed, ctx.rules)
       const won = result.winner === 'player'
       const lost = result.winner === 'enemy'
+
+      // Hull damage taken → that many random intact cells crack.
+      let hullLeft = player.hullHp
+      for (const e of result.events) {
+        if (
+          (e.type === 'hit' || e.type === 'overheat') &&
+          e.target === 'player'
+        )
+          hullLeft = e.hullHp
+      }
+      const taken = player.hullHp - hullLeft
+      const intact = ctx.hull
+        .map(cellKey)
+        .filter((k) => !state.cracks.includes(k))
+      const newCracks = rng
+        .shuffle(intact)
+        .slice(0, Math.floor(taken / ctx.config.damagePerCrack))
+
       return {
         ...state,
         rngState: rng.state,
         phase: 'battle',
-        lastBattle: { player, enemy: state.enemy, result },
+        lastBattle: {
+          player,
+          enemy: state.enemy,
+          result,
+          fielded,
+          newCracks,
+          crateWon: won,
+        },
         wins: state.wins + (won ? 1 : 0),
         gold: state.gold + (won ? ctx.config.winBonus : 0),
         lives: state.lives - (lost ? 1 : 0),
+        cracks: [...state.cracks, ...newCracks],
+        crates: state.crates + (won ? 1 : 0),
+      }
+    }
+    case 'repair': {
+      if (!state.cracks.includes(action.cell)) return state
+      if (state.gold < ctx.config.repairCost) return state
+      return {
+        ...state,
+        gold: state.gold - ctx.config.repairCost,
+        cracks: state.cracks.filter((k) => k !== action.cell),
+      }
+    }
+    case 'repairAll': {
+      const n = Math.min(
+        state.cracks.length,
+        Math.floor(state.gold / ctx.config.repairCost),
+      )
+      if (n === 0) return state
+      return {
+        ...state,
+        gold: state.gold - n * ctx.config.repairCost,
+        cracks: state.cracks.slice(n),
+      }
+    }
+    case 'openCrate': {
+      if (state.crates <= 0) return state
+      const rng = createRng(state.rngState)
+      const defId = rng.pick(ctx.catalog).id
+      const roll = rng.next()
+      const [p1, p2] = ctx.config.crateOdds
+      const tier: Tier = roll < p1 ? 1 : roll < p1 + p2 ? 2 : 3
+      return {
+        ...state,
+        rngState: rng.state,
+        crates: state.crates - 1,
+        bench: [...state.bench, { uid: `i${state.nextUid}`, defId, tier }],
+        nextUid: state.nextUid + 1,
       }
     }
     case 'next':

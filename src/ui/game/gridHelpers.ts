@@ -4,6 +4,7 @@ import {
   type Placement,
   type Rotation,
   type Shape,
+  type Tier,
 } from '../../engine/index.ts'
 
 export interface GridModule {
@@ -13,6 +14,7 @@ export interface GridModule {
   x: number
   y: number
   rotation: Rotation
+  tier?: Tier
 }
 
 export interface GridPreview {

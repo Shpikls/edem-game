@@ -18,6 +18,11 @@ interface Props {
   selectedUid?: string | null
   /** Module that just failed an action (shakes red). */
   errorUid?: string | null
+  /** Cracked cells ('x,y'). */
+  cracks?: ReadonlySet<string>
+  /** Modules that won't fight (sit on cracks). */
+  disabled?: ReadonlySet<string>
+  onCrackClick?: (cell: string) => void
   onModulePointerDown?: (
     uid: string,
     cell: { x: number; y: number },
@@ -41,6 +46,9 @@ export function HullGrid({
   selectedUid,
   errorUid,
   onModulePointerDown,
+  cracks,
+  disabled,
+  onCrackClick,
 }: Props) {
   const visible = items.filter((m) => m.uid !== hiddenUid)
   const owner = new Map<string, GridModule>()
@@ -50,7 +58,10 @@ export function HullGrid({
   const previewKeys = new Set(
     preview ? placedCells(toPlacement(preview)).map((c) => key(c.x, c.y)) : [],
   )
-  const previewOk = preview ? previewFits(hull, items, preview) : false
+  const fitHull = cracks?.size
+    ? hull.filter((c) => !cracks.has(key(c.x, c.y)))
+    : hull
+  const previewOk = preview ? previewFits(fitHull, items, preview) : false
 
   const width = Math.max(...hull.map((c) => c.x)) + 1
   const height = Math.max(...hull.map((c) => c.y)) + 1
@@ -84,6 +95,8 @@ export function HullGrid({
           if (m.uid === errorUid) classes.push('cell--error')
           if (onModulePointerDown) classes.push('is-draggable')
         }
+        const cracked = cracks?.has(k) ?? false
+        if (cracked) classes.push('cell--cracked')
         if (previewKeys.has(k))
           classes.push(previewOk ? 'cell--preview-ok' : 'cell--preview-bad')
         return (
@@ -96,6 +109,9 @@ export function HullGrid({
                 ? (e) => onModulePointerDown(m.uid, { x, y }, e)
                 : undefined
             }
+            onClick={
+              cracked && !m && onCrackClick ? () => onCrackClick(k) : undefined
+            }
           />
         )
       })}
@@ -103,13 +119,20 @@ export function HullGrid({
       {visible.map((m) => (
         <div
           key={m.uid}
-          className={`hull-art ${m.uid === errorUid ? 'is-error' : ''}`}
+          className={`hull-art ${m.uid === errorUid ? 'is-error' : ''} ${
+            disabled?.has(m.uid) ? 'is-disabled' : ''
+          }`}
           style={{
             left: `calc(var(--cell) * ${m.x})`,
             top: `calc(var(--cell) * ${m.y})`,
           }}
         >
-          <ModuleArt defId={m.defId} rotation={m.rotation} cell="var(--cell)" />
+          <ModuleArt
+            defId={m.defId}
+            rotation={m.rotation}
+            cell="var(--cell)"
+            tier={m.tier}
+          />
           <span className="hull-art__label">{m.label}</span>
         </div>
       ))}

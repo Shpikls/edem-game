@@ -93,3 +93,21 @@ export function resolveDrop(
   }
   return { placement: preferred, ok: false }
 }
+
+/** First spot (row by row, any rotation) where a new module fits among existing ones. */
+export function firstFit(
+  hull: Shape,
+  others: readonly Placement[],
+  id: string,
+  shape: Shape,
+  prefer: Rotation = 0,
+): Placement | null {
+  for (const c of [...hull].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    for (let k = 0; k < 4; k++) {
+      const rotation = ((prefer + k) % 4) as Rotation
+      const candidate = { id, shape, rotation, x: c.x, y: c.y }
+      if (checkPlacement(hull, others, candidate).ok) return candidate
+    }
+  }
+  return null
+}

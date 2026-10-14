@@ -8,7 +8,8 @@ import {
 } from 'react'
 import { runContext } from '../../content/run.ts'
 import {
-  autoPlace,
+  isCracked,
+  itemStats,
   sellPrice,
   type Rotation,
   type RunAction,
@@ -23,7 +24,12 @@ import {
 } from './gridHelpers.ts'
 import { HullGrid } from './HullGrid.tsx'
 import { ModuleArt } from './ModuleArt.tsx'
-import { nextRotation, resolveDrop, rotateInPlace } from './rotation.ts'
+import {
+  firstFit,
+  nextRotation,
+  resolveDrop,
+  rotateInPlace,
+} from './rotation.ts'
 
 interface Props {
   run: RunState
@@ -94,7 +100,17 @@ export function Shipyard({ run, dispatch }: Props) {
   const [benchRot, setBenchRot] = useState<Record<string, Rotation>>({})
   const [errorUid, setErrorUid] = useState<string | null>(null)
   const label = labels(run)
-  const { config, hull } = runContext
+  const { config, hull: fullHull } = runContext
+  const cracks = new Set(run.cracks)
+  // Logic works on intact cells only; the grid still draws the full hull.
+  const hull = fullHull.filter((c) => !cracks.has(`${c.x},${c.y}`))
+  const disabled = new Set(
+    run.placed.filter((p) => isCracked(runContext, run, p)).map((p) => p.uid),
+  )
+  const [reveal, setReveal] = useState<string | null>(null)
+  const revealItem = reveal
+    ? run.bench.find((b) => b.uid === reveal)
+    : undefined
 
   const update = useCallback((next: Drag | null) => {
     dragRef.current = next
@@ -110,6 +126,8 @@ export function Shipyard({ run, dispatch }: Props) {
     ...p,
     label: label.get(p.uid) ?? '',
   }))
+  const tierName = (t?: number) =>
+    t === 3 ? ' Mk III' : t === 2 ? ' Mk II' : ''
   const placementsExcept = (uid: string | null) =>
     run.placed.filter((p) => p.uid !== uid).map((p) => toPlacement(p))
 
@@ -180,24 +198,31 @@ export function Shipyard({ run, dispatch }: Props) {
   const autoPlaceBench = (uid: string) => {
     const item = run.bench.find((b) => b.uid === uid)
     if (!item) return
-    const existing = run.placed.map((p) => toPlacement(p))
-    const spot = autoPlace(hull, [
-      ...existing,
-      { id: item.uid, shape: def(item.defId).shape },
-    ])
-    const placed = spot.at(-1)
-    if (spot.slice(0, -1).every((p) => p !== null) && placed) {
+    const spot = firstFit(
+      hull,
+      run.placed.map((p) => toPlacement(p)),
+      item.uid,
+      def(item.defId).shape,
+      benchRot[item.uid] ?? 0,
+    )
+    if (spot) {
       dispatch({
         type: 'place',
         uid: item.uid,
-        x: placed.x,
-        y: placed.y,
-        rotation: placed.rotation,
+        x: spot.x,
+        y: spot.y,
+        rotation: spot.rotation,
       })
       setSelected(null)
     } else {
       flashError(uid)
     }
+  }
+
+  const openCrate = () => {
+    if (run.crates <= 0) return
+    setReveal(`i${run.nextUid}`)
+    dispatch({ type: 'openCrate' })
   }
 
   const tap = (d: Drag) => {
@@ -369,8 +394,11 @@ export function Shipyard({ run, dispatch }: Props) {
         <div className="yard">
           <div className="hull-wrap">
             <HullGrid
-              hull={hull}
+              hull={fullHull}
               items={gridItems}
+              cracks={cracks}
+              disabled={disabled}
+              onCrackClick={(cell) => dispatch({ type: 'repair', cell })}
               preview={preview}
               hiddenUid={
                 dragging && drag?.source.kind === 'hull'
@@ -429,12 +457,19 @@ export function Shipyard({ run, dispatch }: Props) {
                     rotation={benchRot[item.uid] ?? 0}
                     cell="16px"
                     grid
+                    tier={item.tier}
                   />
                   <span>{label.get(item.uid)}</span>
                 </div>
               )
             })}
-            {run.bench.length === 0 && (
+            {run.crates > 0 && (
+              <button className="crate" onClick={openCrate}>
+                <span className="crate__icon">▣</span>
+                контейнер ×{run.crates} · вскрыть
+              </button>
+            )}
+            {run.bench.length === 0 && run.crates === 0 && (
               <p className="note">{dragging ? 'сюда — на склад' : 'пусто'}</p>
             )}
           </div>
@@ -446,9 +481,15 @@ export function Shipyard({ run, dispatch }: Props) {
               <span className="actions__what">
                 <b>{label.get(selectedItem.uid)}</b>{' '}
                 {def(selectedItem.defId).name}
+                {tierName(selectedItem.tier)}
                 <span className="note">
-                  {describeStats(def(selectedItem.defId).stats)}
+                  {describeStats(itemStats(runContext, selectedItem))}
                 </span>
+                {disabled.has(selectedItem.uid) && (
+                  <span className="redline">
+                    стоит на трещине — в бою не работает
+                  </span>
+                )}
               </span>
               <button className="actions__rotate" onClick={rotateSelected}>
                 ↻ повернуть
@@ -473,7 +514,9 @@ export function Shipyard({ run, dispatch }: Props) {
                   setSelected(null)
                 }}
               >
-                продать +{sellPrice(def(selectedItem.defId).price)}
+                продать +
+                {sellPrice(def(selectedItem.defId).price) *
+                  (selectedItem.tier ?? 1)}
               </button>
               <button className="link-button" onClick={() => setSelected(null)}>
                 ✕
@@ -486,6 +529,31 @@ export function Shipyard({ run, dispatch }: Props) {
             </span>
           )}
         </div>
+        {run.cracks.length > 0 && (
+          <div className="repair-bar">
+            <span className="redline">
+              трещин в корпусе: {run.cracks.length}
+              {disabled.size > 0 && ` · не работает модулей: ${disabled.size}`}
+            </span>
+            <button
+              disabled={run.gold < config.repairCost}
+              onClick={() => dispatch({ type: 'repairAll' })}
+            >
+              починить ·{' '}
+              {Math.max(
+                1,
+                Math.min(
+                  run.cracks.length,
+                  Math.floor(run.gold / config.repairCost),
+                ),
+              ) * config.repairCost}{' '}
+              зол.
+            </button>
+            <span className="note">
+              или тап по трещине — {config.repairCost} зол. за клетку
+            </span>
+          </div>
+        )}
       </Sheet>
 
       <div className="shipyard__side">
@@ -568,6 +636,29 @@ export function Shipyard({ run, dispatch }: Props) {
         </Sheet>
       </div>
 
+      {revealItem && (
+        <div className="reveal" onClick={() => setReveal(null)}>
+          <div
+            className={`reveal__card reveal__card--t${revealItem.tier ?? 1}`}
+          >
+            <div className="reveal__title">из контейнера</div>
+            <ModuleArt
+              defId={revealItem.defId}
+              cell="56px"
+              grid
+              tier={revealItem.tier}
+            />
+            <div className="reveal__name">
+              {def(revealItem.defId).name}
+              {tierName(revealItem.tier)}
+            </div>
+            <div className="note">
+              {describeStats(itemStats(runContext, revealItem))}
+            </div>
+            <button>на склад</button>
+          </div>
+        </div>
+      )}
       {dragging && dragging.over?.type !== 'cell' && (
         <div
           className="drag-ghost"

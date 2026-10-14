@@ -42,20 +42,21 @@ function stateAt(battle: Battle, t: number): Record<Side, SideView> {
 }
 
 function sceneShips(run: RunState, battle: Battle): Record<Side, SceneShip> {
-  // Player engine ids are defId#n in placed order (see buildShip).
-  const counts = new Map<string, number>()
-  const player = run.placed.map((p) => {
-    const n = (counts.get(p.defId) ?? 0) + 1
-    counts.set(p.defId, n)
-    return {
-      id: `${p.defId}#${n}`,
-      shape: def(p.defId).shape,
-      x: p.x,
-      y: p.y,
-      rotation: p.rotation,
-      kind: def(p.defId).stats.kind,
-      defId: p.defId,
-    }
+  // Only modules that actually fought, with the engine ids the log uses.
+  const player = battle.fielded.flatMap(({ uid, id }) => {
+    const p = run.placed.find((x) => x.uid === uid)
+    if (!p) return []
+    return [
+      {
+        id,
+        shape: def(p.defId).shape,
+        x: p.x,
+        y: p.y,
+        rotation: p.rotation,
+        kind: def(p.defId).stats.kind,
+        defId: p.defId,
+      },
+    ]
   })
   const enemyItems = battle.enemy.modules.map((m) => ({
     id: m.id,
@@ -67,7 +68,12 @@ function sceneShips(run: RunState, battle: Battle): Record<Side, SceneShip> {
     p ? [{ ...p, kind: enemyItems[i]!.kind, defId: enemyItems[i]!.defId }] : [],
   )
   return {
-    player: { hull: runContext.hull, modules: player },
+    player: {
+      hull: runContext.hull,
+      modules: player,
+      cracks: run.cracks.filter((k) => !battle.newCracks.includes(k)),
+      newCracks: battle.newCracks,
+    },
     enemy: { hull: runContext.hull, modules: enemy },
   }
 }
@@ -158,6 +164,14 @@ export function BattleView({ run, battle, onNext }: Props) {
           />
         </div>
         <div className="battle__stage" ref={stageRef} />
+        {done && (
+          <p className="battle__summary">
+            {battle.newCracks.length > 0
+              ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')} — ремонт на верфи`
+              : 'корпус цел'}
+            {battle.crateWon && ' · +1 контейнер'}
+          </p>
+        )}
         <div className="controls__row battle__controls">
           {[1, 2, 4].map((s) => (
             <button
@@ -249,4 +263,12 @@ function Bar({
       </span>
     </div>
   )
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const d = n % 10
+  const dd = n % 100
+  if (d === 1 && dd !== 11) return one
+  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return few
+  return many
 }

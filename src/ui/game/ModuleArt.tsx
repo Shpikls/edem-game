@@ -1,6 +1,6 @@
 import { artSvg, moduleArt } from '../../content/moduleArt.ts'
 import { modules, type ModuleId } from '../../content/modules.ts'
-import { rotateShape, type Rotation } from '../../engine/index.ts'
+import { rotateShape, type Rotation, type Tier } from '../../engine/index.ts'
 
 /**
  * Module icon sized to its rotated footprint; `cell` is a CSS length for one cell.
@@ -11,12 +11,14 @@ export function ModuleArt({
   rotation = 0,
   cell,
   grid = false,
+  tier,
   className = '',
 }: {
   defId: string
   rotation?: Rotation
   cell: string
   grid?: boolean
+  tier?: Tier | undefined
   className?: string
 }) {
   const id = defId as ModuleId
@@ -54,6 +56,11 @@ export function ModuleArt({
         }}
         dangerouslySetInnerHTML={{ __html: artSvg(id, 'currentColor') }}
       />
+      {tier && tier > 1 && (
+        <span className={`tier-badge tier-badge--${tier}`}>
+          {tier === 2 ? 'II' : 'III'}
+        </span>
+      )}
     </span>
   )
 }

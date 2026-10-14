@@ -17,6 +17,10 @@ export const runConfig: RunConfig = {
   // Roughly what the player could have spent by this round, minus a bit.
   enemyBudget: (round) => 4 + 3 * (round - 1),
   enemyHullHp: (round) => 80 + 8 * round,
+  tierMultiplier: [1, 1.5, 2],
+  crateOdds: [0.6, 0.3, 0.1],
+  damagePerCrack: 20,
+  repairCost: 2,
 }
 
 export const runContext: RunContext = {

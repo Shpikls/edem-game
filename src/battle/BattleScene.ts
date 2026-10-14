@@ -22,6 +22,9 @@ export interface SceneShip {
     kind: 'weapon' | 'shield' | 'armor'
     defId: string
   })[]
+  /** Cracked cells before the battle / cracks this battle will cause ('x,y'). */
+  cracks?: readonly string[]
+  newCracks?: readonly string[]
 }
 
 const INK = 0xeaf2ff
@@ -315,6 +318,24 @@ export class BattleScene {
       }
     })
 
+    // cracks appear on the player hull once the battle is over
+    if (t >= durationMs) {
+      const ship = this.ships.player
+      const data = this.shipsData.player
+      const a = Math.min(1, (t - durationMs) / 400)
+      for (const k of data.newCracks ?? []) {
+        const [cx, cy] = k.split(',').map(Number)
+        const lx = ship.mirror ? ship.width - 1 - cx! : cx!
+        drawCrack(
+          fx,
+          ship.root.x + lx * ship.cell,
+          ship.root.y + cy! * ship.cell,
+          ship.cell,
+        )
+      }
+      fx.stroke({ width: 2, color: RED, alpha: a })
+    }
+
     // destruction
     for (const side of ['player', 'enemy'] as const) {
       const ship = this.ships[side]
@@ -473,4 +494,19 @@ function drawShip(
     )
     parent.addChild(icon)
   }
+
+  for (const k of data.cracks ?? []) {
+    const [cx, cy] = k.split(',').map(Number)
+    drawCrack(g, lx(cx!) * cell, cy! * cell, cell)
+  }
+  g.stroke({ width: 1.5, color: RED, alpha: 0.8 })
+}
+
+function drawCrack(g: Graphics, x: number, y: number, cell: number) {
+  const p = (fx: number, fy: number) => [x + fx * cell, y + fy * cell] as const
+  g.moveTo(...p(0.15, 0.2))
+    .lineTo(...p(0.45, 0.45))
+    .lineTo(...p(0.4, 0.6))
+    .lineTo(...p(0.85, 0.85))
+  g.moveTo(...p(0.45, 0.45)).lineTo(...p(0.75, 0.3))
 }

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { parseShape } from './grid.ts'
 import {
+  buildShip,
   createRun,
   reduceRun,
   type RunAction,
@@ -50,6 +51,10 @@ const ctx: RunContext = {
     hullHp: 50,
     enemyBudget: (round) => round * 3,
     enemyHullHp: () => 30,
+    tierMultiplier: [1, 1.5, 2],
+    crateOdds: [0.6, 0.3, 0.1],
+    damagePerCrack: 10,
+    repairCost: 2,
   },
 }
 
@@ -141,4 +146,55 @@ test('enemy always gets a weapon first and only what fits the hull', () => {
     )
     expect(cells).toBeLessThanOrEqual(6) // 3×2 hull
   }
+})
+
+describe('cracks, repair, crates', () => {
+  const gunsOnly = { ...ctx, catalog: ctx.catalog.slice(0, 1) }
+
+  test('hull damage cracks cells; modules on cracks sit out of the next fight', () => {
+    let s = createRun(gunsOnly, 3)
+    s = reduceRun(gunsOnly, s, {
+      type: 'buy',
+      slot: 0,
+      place: { x: 0, y: 0, rotation: 0 },
+    })
+    s = reduceRun(gunsOnly, s, { type: 'fight' })
+    const taken =
+      50 -
+      (
+        (s.lastBattle!.result.events.findLast(
+          (e) => e.type === 'hit' && e.target === 'player',
+        ) as { hullHp: number } | undefined) ?? { hullHp: 50 }
+      ).hullHp
+    expect(s.cracks).toHaveLength(Math.min(6, Math.floor(taken / 10)))
+    s = reduceRun(gunsOnly, s, { type: 'next' })
+    const gunCracked = s.cracks.includes('0,0') || s.cracks.includes('1,0')
+    const fought = reduceRun(gunsOnly, s, { type: 'fight' })
+    expect(fought.lastBattle!.fielded).toHaveLength(gunCracked ? 0 : 1)
+  })
+
+  test('cannot place on a crack; repair costs gold and frees the cell', () => {
+    let s = { ...createRun(gunsOnly, 1), cracks: ['0,0'], gold: 10 }
+    s = reduceRun(gunsOnly, s, { type: 'buy', slot: 0 })
+    const uid = s.bench[0]!.uid
+    expect(
+      reduceRun(gunsOnly, s, { type: 'place', uid, x: 0, y: 0, rotation: 0 }),
+    ).toBe(s)
+    s = reduceRun(gunsOnly, s, { type: 'repair', cell: '0,0' })
+    expect(s.cracks).toEqual([])
+    expect(s.gold).toBe(10 - 3 - 2)
+    s = reduceRun(gunsOnly, s, { type: 'place', uid, x: 0, y: 0, rotation: 0 })
+    expect(s.placed).toHaveLength(1)
+  })
+
+  test('crates turn into modules; higher tiers scale stats', () => {
+    let s = { ...createRun(ctx, 5), crates: 30 }
+    for (let i = 0; i < 30; i++) s = reduceRun(ctx, s, { type: 'openCrate' })
+    expect(s.crates).toBe(0)
+    expect(s.bench).toHaveLength(30)
+    const tiers = new Set(s.bench.map((b) => b.tier ?? 1))
+    expect(tiers.size).toBeGreaterThan(1)
+    const ship = buildShip(ctx, 10, [{ defId: 'gun', tier: 3 }])
+    expect(ship.modules[0]!.stats).toMatchObject({ damage: 20 })
+  })
 })
