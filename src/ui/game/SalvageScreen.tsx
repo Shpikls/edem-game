@@ -161,6 +161,13 @@ export function SalvageScreen({
             {stage === 'idle' ? 'тапни, чтобы обыскать' : 'сканирование…'}
           </p>
           {pool.length > 0 && (
+            <p className="salvage__pool-title">
+              {stage === 'idle'
+                ? 'в обломках было — уцелеет один модуль:'
+                : 'в обломках было:'}
+            </p>
+          )}
+          {pool.length > 0 && (
             <div className="salvage__pool">
               {pool.map((id, i) => {
                 const found = stage === 'scanning' && i === foundIndex
@@ -200,9 +207,11 @@ export function SalvageScreen({
             {wreck?.kit && (
               <div className="salvage__kit">+ 🔧 ремкомплект — на складе</div>
             )}
-            <p className="end-a__tap salvage__tap">▸ тапни, чтобы продолжить</p>
           </div>
         )
+      )}
+      {stage === 'reveal' && item && (
+        <p className="end-a__tap salvage__tap">▸ тапни, чтобы продолжить</p>
       )}
     </div>
   )

@@ -3611,3 +3611,22 @@ button:disabled:hover {
     border-color: var(--pencil-red);
   }
 }
+
+.salvage__pool-title {
+  margin: 0 0 -14px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pencil-amber);
+  text-align: center;
+}
+
+/* same spot as on the victory screen */
+.salvage__tap {
+  position: fixed;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  margin: 0;
+  white-space: nowrap;
+}
