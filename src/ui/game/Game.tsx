@@ -15,7 +15,7 @@ import { Shipyard } from './Shipyard.tsx'
 const newRun = () => createRun(runContext, Math.floor(Math.random() * 2 ** 31))
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v11', newRun())
+  const [run, setRun] = usePersistentState<RunState>('game.run.v12', newRun())
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
   const dispatch = (action: RunAction) =>

@@ -3012,3 +3012,72 @@ button:disabled:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ── repair mode, auto-repair preview, kits ───────────── */
+
+.cell--repairable {
+  cursor: pointer !important;
+  animation: repairPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes repairPulse {
+  50% {
+    background-color: rgb(255 138 102 / 0.45);
+  }
+}
+
+.cell--will-repair {
+  background-color: rgb(6 214 160 / 0.4) !important;
+  box-shadow: inset 0 0 0 2px #06d6a0 !important;
+}
+
+.repair-bar {
+  flex-wrap: wrap;
+}
+
+.repair-bar.is-active {
+  border-style: solid;
+  background: rgb(255 138 102 / 0.08);
+}
+
+.repair-bar__hint {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.repair-bar button.is-armed {
+  background: #06d6a0;
+  border-color: #06d6a0;
+  color: var(--paper-deep);
+}
+
+.kit-button,
+.bench__kit {
+  border-color: #06d6a0 !important;
+  color: #06d6a0 !important;
+}
+
+.bench__kit {
+  flex: none;
+  min-height: 40px;
+  padding: 4px 10px;
+  font: 500 14px var(--font-mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.bench__kit.is-selected {
+  background: rgb(6 214 160 / 0.2);
+}
+
+.salvage__kit {
+  color: #06d6a0;
+  font-size: 16px;
+  border: 1px solid #06d6a0;
+  padding: 4px 12px;
+}
+
+/* in repair mode modules are not draggable: let taps reach the cracks */
+.ship-frame:has(.cell--repairable) .hull-art {
+  opacity: 0.55;
+}

@@ -9,6 +9,7 @@ import {
 import { runContext } from '../../content/run.ts'
 import {
   isCracked,
+  repairOrder,
   isStationRound,
   offerPrice,
   roundsToStation,
@@ -102,6 +103,10 @@ export function Shipyard({ run, dispatch }: Props) {
   const [selected, setSelected] = useState<Selection>(null)
   const [benchRot, setBenchRot] = useState<Record<string, Rotation>>({})
   const [errorUid, setErrorUid] = useState<string | null>(null)
+  // Repair: tap-to-fix mode (paid or with a kit) and a two-step auto repair.
+  const [repairMode, setRepairMode] = useState<'gold' | 'kit' | null>(null)
+  const [autoArmed, setAutoArmed] = useState(false)
+  const [autoHover, setAutoHover] = useState(false)
   const label = labels(run)
   const { config, hull: fullHull } = runContext
   const cracks = new Set(run.cracks)
@@ -380,6 +385,17 @@ export function Shipyard({ run, dispatch }: Props) {
     run.cracks.length,
     Math.floor(run.gold / config.repairCost),
   )
+  const autoPreview = new Set(repairOrder(runContext, run).slice(0, repairable))
+  const showPreview = autoArmed || autoHover
+  const inRepair = repairMode !== null && run.cracks.length > 0
+  const onCrack = (cell: string) => {
+    if (repairMode === 'kit') {
+      dispatch({ type: 'useKit', cell })
+      setRepairMode(null)
+    } else if (repairMode === 'gold' || run.station) {
+      dispatch({ type: 'repair', cell })
+    }
+  }
   const dragging = drag?.moved ? drag : null
   const sellValue =
     dragging && ownedUid ? sellPrice(def(dragging.defId).price) : 0
@@ -401,11 +417,9 @@ export function Shipyard({ run, dispatch }: Props) {
               items={gridItems}
               cracks={cracks}
               disabled={disabled}
-              onCrackClick={
-                run.station
-                  ? (cell) => dispatch({ type: 'repair', cell })
-                  : undefined
-              }
+              onCrackClick={inRepair || run.station ? onCrack : undefined}
+              repairMode={inRepair}
+              repairPreview={showPreview ? autoPreview : undefined}
               preview={preview}
               hiddenUid={
                 dragging && drag?.source.kind === 'hull'
@@ -433,6 +447,18 @@ export function Shipyard({ run, dispatch }: Props) {
             data-drop="bench"
           >
             <div className="bench__title">склад · {run.bench.length}</div>
+            {run.kits > 0 && (
+              <button
+                className={`bench__kit ${repairMode === 'kit' ? 'is-selected' : ''}`}
+                title="ремкомплект: заделать одну трещину бесплатно, в любой момент"
+                onClick={() =>
+                  run.cracks.length > 0 &&
+                  setRepairMode(repairMode === 'kit' ? null : 'kit')
+                }
+              >
+                🔧 ×{run.kits}
+              </button>
+            )}
             {run.bench.map((item) => {
               const isSel =
                 selected?.kind === 'bench' && selected.uid === item.uid
@@ -539,37 +565,88 @@ export function Shipyard({ run, dispatch }: Props) {
           )}
         </div>
         {run.cracks.length > 0 && (
-          <div className="repair-bar">
+          <div className={`repair-bar ${inRepair ? 'is-active' : ''}`}>
             <span className="redline">
-              трещин в корпусе: {run.cracks.length}
+              трещин: {run.cracks.length}
               {disabled.size > 0 && ` · не работает модулей: ${disabled.size}`}
             </span>
-            {run.station ? (
+            {inRepair ? (
               <>
-                <button
-                  disabled={repairable === 0}
-                  onClick={() => dispatch({ type: 'repairAll' })}
-                >
-                  {repairable === run.cracks.length
-                    ? `починить всё · ${repairable * config.repairCost} зол.`
-                    : `починить ${repairable} из ${run.cracks.length} · ${repairable * config.repairCost} зол.`}
-                </button>
-                {repairable < run.cracks.length && (
-                  <span className="redline">
+                <span className="repair-bar__hint">
+                  {repairMode === 'kit'
+                    ? 'тапни по трещине — ремкомплект её заделает'
+                    : `тапни по трещине — ${config.repairCost} зол. за клетку`}
+                </span>
+                <button onClick={() => setRepairMode(null)}>готово</button>
+              </>
+            ) : (
+              <>
+                {run.station && (
+                  <>
+                    <button
+                      disabled={run.gold < config.repairCost}
+                      onClick={() => {
+                        setAutoArmed(false)
+                        setRepairMode('gold')
+                      }}
+                    >
+                      по клетке · {config.repairCost} зол.
+                    </button>
+                    <button
+                      className={autoArmed ? 'is-armed' : ''}
+                      disabled={repairable === 0}
+                      onMouseEnter={() => setAutoHover(true)}
+                      onMouseLeave={() => setAutoHover(false)}
+                      onClick={() => {
+                        if (!autoArmed) return setAutoArmed(true)
+                        dispatch({ type: 'repairAll' })
+                        setAutoArmed(false)
+                        setAutoHover(false)
+                      }}
+                    >
+                      {autoArmed
+                        ? `подтвердить · ${repairable * config.repairCost} зол.`
+                        : repairable === run.cracks.length
+                          ? `авторемонт всего · ${repairable * config.repairCost} зол.`
+                          : `авторемонт ${repairable} из ${run.cracks.length} · ${repairable * config.repairCost} зол.`}
+                    </button>
+                    {autoArmed && (
+                      <button
+                        className="link-button"
+                        onClick={() => setAutoArmed(false)}
+                      >
+                        отмена
+                      </button>
+                    )}
+                  </>
+                )}
+                {run.kits > 0 && (
+                  <button
+                    className="kit-button"
+                    onClick={() => setRepairMode('kit')}
+                  >
+                    🔧 ремкомплект ×{run.kits}
+                  </button>
+                )}
+                {!run.station && run.kits === 0 && (
+                  <span className="note">
+                    ремонт — на станции снабжения{' '}
+                    {stationIn === 1 ? 'через 1 бой' : `через ${stationIn} боя`}
+                    . Пока можно переставить модули в обход трещин.
+                  </span>
+                )}
+                {run.station && repairable < run.cracks.length && (
+                  <span className="note">
                     на весь ремонт нужно {run.cracks.length * config.repairCost}{' '}
                     зол.
                   </span>
                 )}
-                <span className="note">
-                  или тап по трещине — {config.repairCost} зол. за клетку
-                </span>
+                {autoArmed && (
+                  <span className="note">
+                    подсвечены клетки, которые будут отремонтированы
+                  </span>
+                )}
               </>
-            ) : (
-              <span className="note">
-                ремонт — на станции снабжения{' '}
-                {stationIn === 1 ? 'через 1 бой' : `через ${stationIn} боя`}.
-                Пока можно переставить модули в обход трещин.
-              </span>
             )}
           </div>
         )}

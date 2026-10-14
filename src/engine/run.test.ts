@@ -58,6 +58,7 @@ const ctx: RunContext = {
     cracksFromRound: 1,
     firstShopWeapons: 0,
     repairCost: 2,
+    repairKits: { min: 0, max: 0, from: 1, to: 1 },
     stationEvery: 1,
     lossBonus: 0,
     jumpCharges: 0,
@@ -411,4 +412,38 @@ test('repair all fixes cracks under modules first when gold is short', () => {
   s = { ...s, cracks: ['0,0', '2,0', '1,1'], gold: 2 } // gun sits on 1,1
   s = reduceRun(ctx, s, { type: 'repairAll' })
   expect(s.cracks).toEqual(['0,0', '2,0'])
+})
+
+describe('repair kits', () => {
+  const kitCfg = {
+    ...ctx,
+    config: { ...ctx.config, repairKits: { min: 1, max: 3, from: 3, to: 9 } },
+  }
+
+  test('1–3 kits are planned in rounds 3–9', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const { kitRounds } = createRun(kitCfg, seed)
+      expect(kitRounds.length).toBeGreaterThanOrEqual(1)
+      expect(kitRounds.length).toBeLessThanOrEqual(3)
+      for (const r of kitRounds) {
+        expect(r).toBeGreaterThanOrEqual(3)
+        expect(r).toBeLessThanOrEqual(9)
+      }
+    }
+  })
+
+  test('a kit wreck gives a kit; a kit fixes one crack anywhere, even off-station', () => {
+    let s: RunState = {
+      ...createRun(kitCfg, 1),
+      salvage: [{ round: 3, pool: ['gun'], kit: true }],
+      cracks: ['0,0', '1,1'],
+      station: false,
+    }
+    s = reduceRun(kitCfg, s, { type: 'searchWreck' })
+    expect(s.kits).toBe(1)
+    s = reduceRun(kitCfg, s, { type: 'useKit', cell: '1,1' })
+    expect(s.cracks).toEqual(['0,0'])
+    expect(s.kits).toBe(0)
+    expect(reduceRun(kitCfg, s, { type: 'useKit', cell: '0,0' })).toBe(s)
+  })
 })

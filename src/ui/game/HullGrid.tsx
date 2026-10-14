@@ -24,6 +24,10 @@ interface Props {
   /** Modules that won't fight (sit on cracks). */
   disabled?: ReadonlySet<string>
   onCrackClick?: ((cell: string) => void) | undefined
+  /** Repair mode: every crack (also under modules) is tappable; dragging is off. */
+  repairMode?: boolean
+  /** Cells that the pending auto-repair will fix. */
+  repairPreview?: ReadonlySet<string> | undefined
   onModulePointerDown?: (
     uid: string,
     cell: { x: number; y: number },
@@ -50,6 +54,8 @@ export function HullGrid({
   cracks,
   disabled,
   onCrackClick,
+  repairMode = false,
+  repairPreview,
 }: Props) {
   const visible = items.filter((m) => m.uid !== hiddenUid)
   const owner = new Map<string, GridModule>()
@@ -135,10 +141,12 @@ export function HullGrid({
             }
             if (m.uid === selectedUid) classes.push('cell--selected')
             if (m.uid === errorUid) classes.push('cell--error')
-            if (onModulePointerDown) classes.push('is-draggable')
+            if (onModulePointerDown && !repairMode) classes.push('is-draggable')
           }
           const cracked = cracks?.has(k) ?? false
           if (cracked) classes.push('cell--cracked')
+          if (cracked && repairMode) classes.push('cell--repairable')
+          if (repairPreview?.has(k)) classes.push('cell--will-repair')
           if (previewKeys.has(k))
             classes.push(previewOk ? 'cell--preview-ok' : 'cell--preview-bad')
           return (
@@ -147,12 +155,12 @@ export function HullGrid({
               className={classes.join(' ')}
               data-cell={k}
               onPointerDown={
-                m && onModulePointerDown
+                m && onModulePointerDown && !repairMode
                   ? (e) => onModulePointerDown(m.uid, { x, y }, e)
                   : undefined
               }
               onClick={
-                cracked && !m && onCrackClick
+                cracked && onCrackClick && (repairMode || !m)
                   ? () => onCrackClick(k)
                   : undefined
               }

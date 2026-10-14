@@ -164,6 +164,9 @@ export function SalvageScreen({
             <div className="note">
               {describeStats(itemStats(runContext, item))}
             </div>
+            {wreck?.kit && (
+              <div className="salvage__kit">+ 🔧 ремкомплект — на складе</div>
+            )}
             <button className="stamp" onClick={done}>
               На склад
             </button>

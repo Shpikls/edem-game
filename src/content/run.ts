@@ -35,6 +35,7 @@ export const runConfig: RunConfig = {
   cracksFromRound: 3,
   firstShopWeapons: 2,
   repairCost: 2,
+  repairKits: { min: 1, max: 3, from: 3, to: 9 },
   stationEvery: 2,
   // Endgame: a station every round with star modules on sale.
   stationEveryRoundFrom: 7,
