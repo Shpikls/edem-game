@@ -9,4 +9,6 @@ export const battleRules: BattleRules = {
   overheatBaseDamage: 1,
   overheatDamageStep: 1,
   maxDurationMs: 120_000,
+  kineticShieldBypass: 0.5,
+  armorMinDamage: 1,
 }

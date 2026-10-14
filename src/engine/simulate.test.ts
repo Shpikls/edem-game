@@ -11,6 +11,8 @@ const rules: BattleRules = {
   overheatBaseDamage: 1,
   overheatDamageStep: 1,
   maxDurationMs: 120_000,
+  kineticShieldBypass: 0.5,
+  armorMinDamage: 1,
 }
 
 const laser = (id: string, damage = 5, cooldownMs = 1_000): ShipModule => ({
@@ -18,10 +20,47 @@ const laser = (id: string, damage = 5, cooldownMs = 1_000): ShipModule => ({
   stats: { kind: 'weapon', damage, damageType: 'energy', cooldownMs },
 })
 
+const rail = (id: string, damage = 10, cooldownMs = 1_000): ShipModule => ({
+  id,
+  stats: { kind: 'weapon', damage, damageType: 'kinetic', cooldownMs },
+})
+
+const shield = (
+  id: string,
+  capacity: number,
+  regenAmount = 0,
+  regenIntervalMs = 1_000,
+): ShipModule => ({
+  id,
+  stats: { kind: 'shield', capacity, regenAmount, regenIntervalMs },
+})
+
+const plating = (id: string, armor: number): ShipModule => ({
+  id,
+  stats: { kind: 'armor', armor },
+})
+
 const ship = (hullHp: number, ...modules: ShipModule[]): Ship => ({
   hullHp,
   modules,
 })
+
+/** First hit of a single weapon against a ship with the given modules. */
+const firstHit = (weapon: ShipModule, ...targetModules: ShipModule[]) => {
+  const { events } = simulate(
+    ship(100, weapon),
+    ship(100, ...targetModules),
+    1,
+    rules,
+  )
+  const hit = events.find((e) => e.type === 'hit')
+  if (hit?.type !== 'hit') throw new Error('no hit')
+  return {
+    absorbed: hit.absorbed,
+    blocked: hit.blocked,
+    hullDamage: hit.hullDamage,
+  }
+}
 
 describe('simulate', () => {
   test('same inputs and seed produce an identical log', () => {
@@ -48,49 +87,23 @@ describe('simulate', () => {
     const result = simulate(ship(100, laser('laser#1')), ship(20), 1, rules)
     expect(result.winner).toBe('player')
     expect(result.durationMs).toBe(4_000)
-    expect(result.events).toEqual([
-      {
-        t: 1_000,
-        type: 'hit',
-        side: 'player',
-        source: 'laser#1',
-        target: 'enemy',
-        amount: 5,
-        damageType: 'energy',
-        hullHp: 15,
-      },
-      {
-        t: 2_000,
-        type: 'hit',
-        side: 'player',
-        source: 'laser#1',
-        target: 'enemy',
-        amount: 5,
-        damageType: 'energy',
-        hullHp: 10,
-      },
-      {
-        t: 3_000,
-        type: 'hit',
-        side: 'player',
-        source: 'laser#1',
-        target: 'enemy',
-        amount: 5,
-        damageType: 'energy',
-        hullHp: 5,
-      },
-      {
-        t: 4_000,
-        type: 'hit',
-        side: 'player',
-        source: 'laser#1',
-        target: 'enemy',
-        amount: 5,
-        damageType: 'energy',
-        hullHp: 0,
-      },
-      { t: 4_000, type: 'destroyed', side: 'enemy' },
-    ])
+    expect(
+      result.events.map((e) => (e.type === 'hit' ? e.hullHp : e.type)),
+    ).toEqual([15, 10, 5, 0, 'destroyed'])
+    expect(result.events[0]).toEqual({
+      t: 1_000,
+      type: 'hit',
+      side: 'player',
+      source: 'laser#1',
+      target: 'enemy',
+      amount: 5,
+      damageType: 'energy',
+      absorbed: 0,
+      blocked: 0,
+      hullDamage: 5,
+      shieldHp: 0,
+      hullHp: 15,
+    })
   })
 
   test('cooldown that is not a multiple of the tick does not drift', () => {
@@ -167,5 +180,131 @@ describe('simulate', () => {
     expect(() =>
       simulate(ship(10), ship(10), 1, { ...rules, tickMs: 0 }),
     ).toThrow(RangeError)
+  })
+
+  describe('shields, armor and damage types', () => {
+    test.each([
+      // weapon,              target,                     absorbed, blocked, hull
+      ['energy vs nothing', laser('w', 10), [], 0, 0, 10],
+      ['kinetic vs nothing', rail('w', 10), [], 0, 0, 10],
+      ['energy vs shield', laser('w', 10), [shield('s', 50)], 10, 0, 0],
+      [
+        'kinetic vs shield: half bypasses',
+        rail('w', 10),
+        [shield('s', 50)],
+        5,
+        0,
+        5,
+      ],
+      ['energy vs armor: ignored', laser('w', 10), [plating('a', 4)], 0, 0, 10],
+      ['kinetic vs armor', rail('w', 10), [plating('a', 4)], 0, 4, 6],
+      [
+        'armor stacks',
+        rail('w', 10),
+        [plating('a1', 4), plating('a2', 3)],
+        0,
+        7,
+        3,
+      ],
+      ['armor leaves min damage', rail('w', 10), [plating('a', 50)], 0, 9, 1],
+      [
+        'kinetic vs shield + armor',
+        rail('w', 10),
+        [shield('s', 50), plating('a', 3)],
+        5,
+        3,
+        2,
+      ],
+      [
+        'energy overflows a weak shield',
+        laser('w', 10),
+        [shield('s', 4)],
+        4,
+        0,
+        6,
+      ],
+      [
+        'shields stack',
+        laser('w', 10),
+        [shield('s1', 4), shield('s2', 4)],
+        8,
+        0,
+        2,
+      ],
+      [
+        'odd kinetic: bypass rounds down',
+        rail('w', 7),
+        [shield('s', 50)],
+        4,
+        0,
+        3,
+      ],
+    ] as const)(
+      '%s',
+      (_, weapon, targetModules, absorbed, blocked, hullDamage) => {
+        expect(firstHit(weapon, ...targetModules)).toEqual({
+          absorbed,
+          blocked,
+          hullDamage,
+        })
+      },
+    )
+
+    test('shield is depleted, then hull takes full energy damage', () => {
+      const { events } = simulate(
+        ship(100, laser('w', 10)),
+        ship(100, shield('s', 15)),
+        1,
+        rules,
+      )
+      const hits = events.filter((e) => e.type === 'hit').slice(0, 3)
+      expect(
+        hits.map((e) => [e.absorbed, e.hullDamage, e.shieldHp, e.hullHp]),
+      ).toEqual([
+        [10, 0, 5, 100],
+        [5, 5, 0, 95],
+        [0, 10, 0, 85],
+      ])
+    })
+
+    test('shield regenerates up to its capacity, not beyond', () => {
+      const { events } = simulate(
+        ship(100, laser('w', 6, 2_000)),
+        ship(100, shield('s', 10, 4, 1_000)),
+        1,
+        rules,
+      )
+      const early = events.filter((e) => e.t <= 4_000)
+      expect(
+        early.map(
+          (e) =>
+            `${e.t} ${e.type} shield=${'shieldHp' in e ? e.shieldHp : '-'}`,
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          "2000 hit shield=4",
+          "2000 shieldRegen shield=8",
+          "3000 shieldRegen shield=10",
+          "4000 hit shield=4",
+          "4000 shieldRegen shield=8",
+        ]
+      `)
+    })
+
+    test('overheat ignores shields and armor', () => {
+      const tank = ship(10, shield('s', 1_000, 1_000), plating('a', 1_000))
+      const result = simulate(tank, ship(15), 1, rules)
+      expect(result.winner).toBe('enemy')
+      expect(result.durationMs).toBe(28_000)
+    })
+
+    test('absorbed + blocked + hullDamage always equals raw damage', () => {
+      const attacker = ship(500, laser('l', 7, 900), rail('r', 13, 1_300))
+      const defender = ship(500, shield('s', 20, 3, 700), plating('a', 5))
+      for (const e of simulate(attacker, defender, 1, rules).events) {
+        if (e.type === 'hit')
+          expect(e.absorbed + e.blocked + e.hullDamage).toBe(e.amount)
+      }
+    })
   })
 })
