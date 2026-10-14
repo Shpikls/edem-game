@@ -66,15 +66,21 @@ export const moduleArt: Record<ModuleId, Art> = {
     w: 200,
     h: 200,
     prims: [
-      { t: 'path', d: 'M100 18 L171 59 L171 141 L100 182 L29 141 L29 59 Z' },
-      { t: 'circle', cx: 100, cy: 100, r: 50, dash: '12 9' },
-      { t: 'circle', cx: 100, cy: 100, r: 20 },
-      { t: 'circle', cx: 100, cy: 100, r: 8, solid: true },
+      // heraldic shield
       {
         t: 'path',
-        d: 'M100 50 V80 M100 120 V150 M50 100 H80 M120 100 H150',
-        thin: true,
+        d: 'M100 18 L170 44 L170 98 C170 140 140 166 100 184 C60 166 30 140 30 98 L30 44 Z',
       },
+      {
+        t: 'path',
+        d: 'M100 36 L154 56 L154 98 C154 130 132 151 100 166 C68 151 46 130 46 98 L46 56 Z',
+        thin: true,
+        dash: '10 8',
+      },
+      // emblem: chevron with a core
+      { t: 'path', d: 'M64 82 L100 108 L136 82' },
+      { t: 'path', d: 'M64 112 L100 138 L136 112', thin: true },
+      { t: 'circle', cx: 100, cy: 66, r: 7, solid: true },
     ],
   },
   machinegun: {
