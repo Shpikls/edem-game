@@ -123,32 +123,22 @@ describe('simulate', () => {
     expect(hits).toEqual([300, 500, 800, 1_000])
   })
 
-  test('simultaneous kills: the one knocked less far below zero wins with 1 hull', () => {
-    // Both die at 1 s; the player overkills less (10 → −2) than the enemy (10 → −5).
+  test('simultaneous kills count as the player losing; the enemy keeps 1 hull', () => {
     const result = simulate(
       ship(10, laser('a#1', 15)),
       ship(10, laser('b#1', 12)),
       1,
       rules,
     )
-    expect(result.winner).toBe('player')
+    expect(result.winner).toBe('enemy')
     expect(result.durationMs).toBe(1_000)
-    const destroyed = result.events.filter((e) => e.type === 'destroyed')
-    expect(destroyed).toEqual([{ t: 1_000, type: 'destroyed', side: 'enemy' }])
-    const lastHitOnPlayer = result.events.findLast(
-      (e) => e.type === 'hit' && e.target === 'player',
+    expect(result.events.filter((e) => e.type === 'destroyed')).toEqual([
+      { t: 1_000, type: 'destroyed', side: 'player' },
+    ])
+    const lastHitOnEnemy = result.events.findLast(
+      (e) => e.type === 'hit' && e.target === 'enemy',
     )
-    expect(lastHitOnPlayer).toMatchObject({ hullHp: 1 })
-  })
-
-  test('perfectly symmetric kill still has a winner', () => {
-    const result = simulate(
-      ship(10, laser('a#1', 10)),
-      ship(10, laser('b#1', 10)),
-      1,
-      rules,
-    )
-    expect(['player', 'enemy']).toContain(result.winner)
+    expect(lastHitOnEnemy).toMatchObject({ hullHp: 1 })
   })
 
   test('outcome does not depend on which side is the player', () => {

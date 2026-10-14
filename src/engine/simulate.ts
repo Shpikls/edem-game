@@ -25,10 +25,9 @@ interface ShieldRegenState {
 }
 
 interface ShipState {
-  /** Hull without the clamp at 0: how far below zero a ship was knocked (tie-breaks). */
+  /** Hull without the clamp at 0. */
   rawHull: number
   maxHull: number
-  damageDealt: number
   side: Side
   hullHp: number
   shieldHp: number
@@ -55,7 +54,6 @@ function initShip(side: Side, ship: Ship): ShipState {
     hullHp: ship.hullHp,
     rawHull: ship.hullHp,
     maxHull: ship.hullHp,
-    damageDealt: 0,
     shieldHp: 0,
     shieldMax: 0,
     armor: 0,
@@ -193,7 +191,6 @@ export function simulate(
             weapon.damageType,
             rules,
           )
-          ship.damageDealt += weapon.damage
           events.push({
             t,
             type: 'hit',
@@ -252,20 +249,9 @@ export function simulate(
       if (dead.length === 1) {
         winner = opponent(dead[0]!.side)
       } else {
-        // Both went down in the same tick — no draws: the one knocked less far
-        // below zero wins, then the one who dealt more damage, then the player.
-        // The winner limps away with 1 hull.
-        const [p, e] = ships
-        winner =
-          p.rawHull !== e.rawHull
-            ? p.rawHull > e.rawHull
-              ? 'player'
-              : 'enemy'
-            : p.damageDealt !== e.damageDealt
-              ? p.damageDealt > e.damageDealt
-                ? 'player'
-                : 'enemy'
-              : 'player'
+        // Both went down in the same tick: that counts as the player's loss
+        // (the emergency jump fires). The enemy limps away with 1 hull.
+        winner = 'enemy'
         const survivor = shipBySide[winner]
         survivor.hullHp = 1
         for (let i = tickStart; i < events.length; i++) {
