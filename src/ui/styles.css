@@ -3477,3 +3477,103 @@ button:disabled:hover {
   padding: 8px 16px;
   border: 1px solid var(--ink-faint);
 }
+
+/* ── salvage: on-board miniatures, broken / survivor ──── */
+
+.salvage__pool {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 340px;
+}
+
+.salvage__mini {
+  position: relative;
+  display: inline-flex;
+  padding: 6px;
+  border: 1px solid var(--pencil-amber);
+  color: var(--pencil-amber);
+  background: rgb(16 57 106 / 0.8);
+}
+
+.salvage__x {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 22px;
+  color: var(--pencil-red);
+  opacity: 0;
+}
+
+.salvage__mini.is-broken {
+  animation: broken 0.3s ease-out forwards;
+}
+
+.salvage__mini.is-broken .salvage__x {
+  animation: xIn 0.3s ease-out forwards;
+  animation-delay: inherit;
+}
+
+@keyframes broken {
+  to {
+    opacity: 0.35;
+    border-color: var(--pencil-red);
+    transform: rotate(-6deg);
+  }
+}
+
+@keyframes xIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.salvage__mini.is-found {
+  animation: survivor 2s ease-in forwards;
+  animation-delay: 0s !important;
+  z-index: 2;
+}
+
+@keyframes survivor {
+  0%,
+  60% {
+    transform: none;
+  }
+  80% {
+    transform: scale(1.6);
+    border-color: var(--crate-light);
+    color: var(--crate-light);
+    box-shadow: 0 0 18px var(--crate-light);
+  }
+  100% {
+    transform: translateY(-34vh) scale(2.6);
+    opacity: 0.2;
+    border-color: var(--crate-light);
+    color: var(--crate-light);
+  }
+}
+
+/* the reveal grows out of the survivor's flight */
+.salvage-reveal {
+  animation: revealIn 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes revealIn {
+  from {
+    transform: translateY(12vh) scale(0.4);
+    opacity: 0;
+  }
+}
+
+.salvage--reveal {
+  cursor: pointer;
+}
+
+.salvage__tap {
+  position: static;
+  margin-top: 18px;
+}

@@ -68,7 +68,9 @@ export function SalvageScreen({
   const done = () => (run.salvage.length > 0 ? finish() : setStage('leaving'))
 
   const left = run.salvage.length + (stage === 'idle' ? 0 : 1)
-  const onBoard = summarize(current?.pool ?? [])
+  const pool = current?.pool ?? []
+  // The module that survived: first pool entry of the found type.
+  const foundIndex = item ? pool.indexOf(item.defId) : -1
   // Which fragment holds the find (deterministic per wreck).
   const hull = runContext.hull
   const findIndex = Math.floor(noise((current?.round ?? 1) * 7.3) * hull.length)
@@ -76,7 +78,9 @@ export function SalvageScreen({
   return (
     <div
       className={`crate-screen salvage salvage--${stage} crate-screen--t${tier}`}
-      onClick={stage === 'idle' ? search : undefined}
+      onClick={
+        stage === 'idle' ? search : stage === 'reveal' ? done : undefined
+      }
     >
       {stage !== 'leaving' && (
         <div className="crate-screen__head">
@@ -156,13 +160,31 @@ export function SalvageScreen({
           <p className="crate-screen__hint">
             {stage === 'idle' ? 'тапни, чтобы обыскать' : 'сканирование…'}
           </p>
-          {onBoard && (
-            <p className="note salvage__onboard">на борту было: {onBoard}</p>
+          {pool.length > 0 && (
+            <div className="salvage__pool">
+              {pool.map((id, i) => {
+                const found = stage === 'scanning' && i === foundIndex
+                return (
+                  <span
+                    key={i}
+                    className={`salvage__mini ${found ? 'is-found' : ''} ${
+                      stage === 'scanning' && !found ? 'is-broken' : ''
+                    }`}
+                    style={{
+                      animationDelay: `${0.2 + (i / Math.max(1, pool.length)) * 1.3}s`,
+                    }}
+                  >
+                    <ModuleArt defId={id} cell="16px" grid />
+                    <i className="salvage__x">✕</i>
+                  </span>
+                )
+              })}
+            </div>
           )}
         </div>
       ) : (
         item && (
-          <div className="crate-reveal">
+          <div className="crate-reveal salvage-reveal">
             <div className="crate-glow crate-glow--burst" />
             <div className="crate-screen__head-inline">найдено в обломках</div>
             <ModuleArt defId={item.defId} cell="64px" grid tier={item.tier} />
@@ -178,20 +200,10 @@ export function SalvageScreen({
             {wreck?.kit && (
               <div className="salvage__kit">+ 🔧 ремкомплект — на складе</div>
             )}
-            <button className="stamp" onClick={done}>
-              На склад
-            </button>
+            <p className="end-a__tap salvage__tap">▸ тапни, чтобы продолжить</p>
           </div>
         )
       )}
     </div>
   )
-}
-
-function summarize(pool: readonly string[]): string {
-  const counts = new Map<string, number>()
-  for (const id of pool) counts.set(id, (counts.get(id) ?? 0) + 1)
-  return [...counts]
-    .map(([id, n]) => `${def(id).name}${n > 1 ? ` ×${n}` : ''}`)
-    .join(', ')
 }
