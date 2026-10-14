@@ -146,7 +146,7 @@ export function BattleView({ run, battle, onNext }: Props) {
               {result.winner === 'player'
                 ? `победа +${runContext.config.winBonus} зол.`
                 : result.winner === 'enemy'
-                  ? 'поражение −1 жизнь'
+                  ? `поражение −1 жизнь · +${runContext.config.lossBonus} зол.`
                   : 'ничья'}
             </span>
           ) : undefined
@@ -173,6 +173,9 @@ export function BattleView({ run, battle, onNext }: Props) {
               ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')} — ремонт на верфи`
               : 'корпус цел'}
             {battle.salvageWon && ' · обломки врага можно обыскать'}
+            {result.winner === 'enemy' &&
+              runContext.config.stationAfterLoss &&
+              ' · дальше аварийная стоянка: ремонт и магазин'}
           </p>
         )}
         <div className="controls__row battle__controls">

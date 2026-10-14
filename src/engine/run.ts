@@ -23,8 +23,16 @@ export interface RunConfig {
   shopSize: number
   hullHp: number
   /** Enemy gold budget for a 1-based round. */
-  enemyBudget: (round: number) => number
-  enemyHullHp: (round: number) => number
+  /**
+   * Enemy strength by level. Level = wins + 1, so a loss doesn't make the
+   * next enemy stronger — you get a rematch-level fight to recover.
+   */
+  enemyBudget: (level: number) => number
+  enemyHullHp: (level: number) => number
+  /** Extra gold after a lost battle. */
+  lossBonus: number
+  /** After a loss the next round always has a station (repair + shop). */
+  stationAfterLoss: boolean
   /** Stat multiplier per tier: [Mk I, Mk II, Mk III]. */
   tierMultiplier: readonly [number, number, number]
   /** Tier odds [★, ★★, ★★★] for a crate earned in this round; sums to 1. */
@@ -251,9 +259,9 @@ function rollShop(
  * Buys random affordable modules that still fit on the hull until the budget runs out.
  * The first pick is always a weapon (if any is affordable) so the enemy can fight.
  */
-function rollEnemy(ctx: RunContext, rngState: number, round: number) {
+function rollEnemy(ctx: RunContext, rngState: number, level: number) {
   const rng = createRng(rngState)
-  let budget = ctx.config.enemyBudget(round)
+  let budget = ctx.config.enemyBudget(level)
   const picks: CatalogEntry[] = []
   const fits = (extra: CatalogEntry) =>
     autoPlace(
@@ -273,7 +281,7 @@ function rollEnemy(ctx: RunContext, rngState: number, round: number) {
   return {
     enemy: buildShip(
       ctx,
-      ctx.config.enemyHullHp(round),
+      ctx.config.enemyHullHp(level),
       picks.map((c) => c.id),
     ),
     rngState: rng.state,
@@ -281,7 +289,9 @@ function rollEnemy(ctx: RunContext, rngState: number, round: number) {
 }
 
 function startRound(ctx: RunContext, state: RunState, round: number): RunState {
-  const station = isStationRound(ctx, round)
+  const lostLast = state.lastBattle?.result.winner === 'enemy'
+  const station =
+    isStationRound(ctx, round) || (ctx.config.stationAfterLoss && lostLast)
   const shop = station
     ? rollShop(
         ctx,
@@ -290,7 +300,7 @@ function startRound(ctx: RunContext, state: RunState, round: number): RunState {
         round === 1 ? ctx.config.firstShopWeapons : 0,
       )
     : { shop: [], shopTiers: [], rngState: state.rngState }
-  const enemy = rollEnemy(ctx, shop.rngState, round)
+  const enemy = rollEnemy(ctx, shop.rngState, state.wins + 1)
   return {
     ...state,
     round,
@@ -487,7 +497,10 @@ export function reduceRun(
           salvageWon: won,
         },
         wins: state.wins + (won ? 1 : 0),
-        gold: state.gold + (won ? ctx.config.winBonus : 0),
+        gold:
+          state.gold +
+          (won ? ctx.config.winBonus : 0) +
+          (lost ? ctx.config.lossBonus : 0),
         lives: state.lives - (lost ? 1 : 0),
         cracks: [...state.cracks, ...newCracks],
         salvage: won

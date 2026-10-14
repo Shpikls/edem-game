@@ -59,6 +59,8 @@ const ctx: RunContext = {
     firstShopWeapons: 0,
     repairCost: 2,
     stationEvery: 1,
+    lossBonus: 0,
+    stationAfterLoss: false,
     stationEveryRoundFrom: 100,
     shopTierOdds: () => [1, 0, 0],
     tierPriceMultiplier: [1, 1.5, 2],
@@ -322,4 +324,33 @@ test('late game: a station every round, star offers cost more', () => {
     expect(bought.gold).toBe(100 - Math.ceil(3 * 1.5))
     expect(bought.bench.at(-1)?.tier).toBe(2)
   }
+})
+
+describe('comeback after a loss', () => {
+  const gunsOnly = { ...ctx, catalog: ctx.catalog.slice(0, 1) }
+  const comeback = {
+    ...gunsOnly,
+    config: {
+      ...gunsOnly.config,
+      stationEvery: 2,
+      lossBonus: 2,
+      stationAfterLoss: true,
+      lives: 10,
+      rounds: 10,
+      enemyBudget: (level: number) => level * 3,
+    },
+  }
+
+  test('a loss pays out, forces a station and keeps the enemy level', () => {
+    let s = createRun(comeback, 1)
+    const enemyBefore = s.enemy.modules.length
+    s = reduceRun(comeback, s, { type: 'fight' }) // empty ship loses
+    expect(s.lastBattle!.result.winner).toBe('enemy')
+    const gold = s.gold
+    s = reduceRun(comeback, s, { type: 'next' })
+    expect(gold).toBe(comeback.config.startGold + 2)
+    expect(s.round).toBe(2)
+    expect(s.station).toBe(true) // round 2 is normally not a station
+    expect(s.enemy.modules.length).toBe(enemyBefore) // still level 1
+  })
 })

@@ -9,6 +9,7 @@ import {
 import { runContext } from '../../content/run.ts'
 import {
   isCracked,
+  isStationRound,
   offerPrice,
   roundsToStation,
   itemStats,
@@ -586,7 +587,11 @@ export function Shipyard({ run, dispatch }: Props) {
         {run.station ? (
           <Sheet
             num="03"
-            title="Станция снабжения"
+            title={
+              isStationRound(runContext, run.round)
+                ? 'Станция снабжения'
+                : 'Аварийная стоянка'
+            }
             aside={<span className="gold">{run.gold} зол.</span>}
             className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
           >

@@ -15,10 +15,13 @@ export const runConfig: RunConfig = {
   shopSize: 5,
   hullHp: frigate.hullHp,
   // Roughly what the player could have spent by this round, minus a bit.
-  // Rounds 1–2 are a gentle ramp: one weapon, thin hull — a single bought weapon
-  // carries you to the second station.
-  enemyBudget: (round) => (round <= 2 ? 3 : 4 + 3 * (round - 1)),
-  enemyHullHp: (round) => (round <= 2 ? 50 + 10 * round : 80 + 8 * round),
+  // By level (= wins + 1). Levels 1–2 are a gentle ramp: one weapon, thin hull —
+  // a single bought weapon carries you to the second station.
+  enemyBudget: (level) => (level <= 2 ? 3 : 4 + 3 * (level - 1)),
+  enemyHullHp: (level) => (level <= 2 ? 50 + 10 * level : 80 + 8 * level),
+  // Comeback: a loss gives gold and an emergency station, and doesn't raise the enemy level.
+  lossBonus: 2,
+  stationAfterLoss: true,
   tierMultiplier: [1, 1.5, 2],
   // No stars early; ★★ from round 4, ★★★ from round 5, frequent near the end.
   crateOdds: (round) => {
