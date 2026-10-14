@@ -125,7 +125,7 @@ export interface RunState {
   station: boolean
   /** Emergency jumps left. */
   jumps: number
-  /** The previous round ended with an emergency jump. */
+  /** Back from an emergency jump (cleared when the next round starts). */
   jumped: boolean
 }
 
@@ -145,7 +145,7 @@ export type RunAction =
   | { type: 'repair'; cell: string }
   | { type: 'repairAll' }
   | { type: 'searchWreck' }
-  /** During a battle: jump out — no life lost, no rewards, all cracks repaired. */
+  /** Before the killing blow: jump out — no life lost, all cracks repaired, same mission. */
   | { type: 'jump' }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
@@ -299,11 +299,9 @@ function rollEnemy(ctx: RunContext, rngState: number, level: number) {
 }
 
 function startRound(ctx: RunContext, state: RunState, round: number): RunState {
-  const lostLast = !state.jumped && state.lastBattle?.result.winner === 'enemy'
+  const lostLast = state.lastBattle?.result.winner === 'enemy'
   const station =
-    isStationRound(ctx, round) ||
-    state.jumped ||
-    (ctx.config.stationAfterLoss && lostLast)
+    isStationRound(ctx, round) || (ctx.config.stationAfterLoss && lostLast)
   const shop = station
     ? rollShop(
         ctx,
@@ -372,20 +370,16 @@ export function reduceRun(
     if (action.type === 'jump') {
       const battle = state.lastBattle
       if (!battle || state.jumps <= 0) return state
-      // Undo the fight's consequences, repair everything, burn the round.
-      const restored: RunState = {
+      // Undo the fight, repair everything and return to the same mission:
+      // same round, same enemy, time to rearrange the hull.
+      return {
         ...state,
         ...battle.before,
+        phase: 'shop',
         cracks: [],
         jumps: state.jumps - 1,
+        jumped: true,
       }
-      if (state.round >= ctx.config.rounds)
-        return { ...restored, phase: 'over' }
-      return startRound(
-        ctx,
-        { ...restored, gold: restored.gold + ctx.config.income, jumped: true },
-        state.round + 1,
-      )
     }
     if (action.type !== 'next') return state
     const over = state.lives <= 0 || state.round >= ctx.config.rounds

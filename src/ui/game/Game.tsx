@@ -21,6 +21,10 @@ export function Game() {
   const dispatch = (action: RunAction) =>
     setRun((s) => reduceRun(runContext, s, action))
   const { config } = runContext
+  // During a battle the outcome isn't final yet (the player may still jump out):
+  // show the values from before the fight until "Next".
+  const shown =
+    run.phase === 'battle' && run.lastBattle ? run.lastBattle.before : run
 
   return (
     <div className="game">
@@ -31,14 +35,14 @@ export function Game() {
         <span className="lives">
           жизни
           {Array.from({ length: config.lives }, (_, i) => (
-            <i key={i} className={i < run.lives ? 'on' : ''} />
+            <i key={i} className={i < shown.lives ? 'on' : ''} />
           ))}
         </span>
         <span>
-          золото <b>{run.gold}</b>
+          золото <b>{shown.gold}</b>
         </span>
         <span>
-          побед <b>{run.wins}</b>
+          побед <b>{shown.wins}</b>
         </span>
         <span title="аварийные прыжки: выйти из боя без потери жизни, корабль восстановится">
           прыжки <b>{'⚡'.repeat(run.jumps) || '—'}</b>

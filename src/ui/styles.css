@@ -2519,3 +2519,80 @@ button:disabled:hover {
     letter-spacing: 0.12em;
   }
 }
+
+/* ── warp transitions, critical prompt ────────────────── */
+
+.warp {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warp i {
+  position: absolute;
+  right: -60%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ink));
+  animation: warp 0.6s ease-in forwards;
+}
+
+@keyframes warp {
+  from {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-260%);
+    opacity: 0.2;
+  }
+}
+
+.warp .crate-screen__hint {
+  position: relative;
+  animation: blink 0.4s ease-in-out infinite;
+}
+
+.critical {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92%, 380px);
+  padding: 16px 18px;
+  background: rgb(16 57 106 / 0.94);
+  border: 2px solid var(--pencil-red);
+  text-align: center;
+  animation: pop 0.3s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.critical__title {
+  color: var(--pencil-red);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  animation: blink 0.8s ease-in-out infinite;
+}
+
+.critical .note {
+  margin: 8px 0 14px;
+}
+
+.critical__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.critical__actions button {
+  height: 42px;
+  min-width: 140px;
+}

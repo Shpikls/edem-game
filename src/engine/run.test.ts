@@ -363,18 +363,20 @@ describe('emergency jump', () => {
     config: { ...gunsOnly.config, stationEvery: 2, lives: 5, rounds: 10 },
   }
 
-  test('jumping out of a lost fight keeps the life, repairs all, burns the round', () => {
+  test('jumping out keeps the life, repairs all and returns to the same mission', () => {
     let s = { ...createRun(cfg, 1), cracks: ['0,0', '1,1'] }
+    const enemy = s.enemy
     s = reduceRun(cfg, s, { type: 'fight' }) // empty ship loses
     expect(s.lives).toBe(4)
     s = reduceRun(cfg, s, { type: 'jump' })
     expect(s.phase).toBe('shop')
-    expect(s.round).toBe(2)
+    expect(s.round).toBe(1)
+    expect(s.enemy).toEqual(enemy)
     expect(s.lives).toBe(5)
     expect(s.cracks).toEqual([])
     expect(s.jumps).toBe(1)
-    expect(s.station).toBe(true)
-    expect(s.gold).toBe(cfg.config.startGold + cfg.config.income)
+    expect(s.gold).toBe(cfg.config.startGold)
+    expect(s.jumped).toBe(true)
   })
 
   test('no jumps left → jump is ignored', () => {

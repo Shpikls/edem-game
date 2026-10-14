@@ -5,9 +5,11 @@ import { def, describeStats } from './describe.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 
 const SCAN_MS = 2000
+/** Warp transition back to the shipyard after the last wreck. */
+const LEAVE_MS = 900
 const CELL = 40
 
-type Stage = 'idle' | 'scanning' | 'reveal'
+type Stage = 'idle' | 'scanning' | 'reveal' | 'leaving'
 
 const noise = (n: number) => {
   const x = Math.sin(n * 12.9898) * 43758.5453
@@ -37,11 +39,20 @@ export function SalvageScreen({
   const item = uid ? run.bench.find((b) => b.uid === uid) : undefined
   const tier = item?.tier ?? 1
 
+  const finish = () => {
+    setStage('idle')
+    setUid(null)
+    onDone()
+  }
+
   useEffect(() => {
-    if (stage !== 'scanning') return
-    const t = window.setTimeout(() => setStage('reveal'), SCAN_MS)
+    if (stage !== 'scanning' && stage !== 'leaving') return
+    const t = window.setTimeout(
+      () => (stage === 'scanning' ? setStage('reveal') : finish()),
+      stage === 'scanning' ? SCAN_MS : LEAVE_MS,
+    )
     return () => window.clearTimeout(t)
-  }, [stage])
+  }, [stage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const search = () => {
     if (stage !== 'idle' || !run.salvage[0]) return
@@ -52,11 +63,8 @@ export function SalvageScreen({
     setStage('scanning')
   }
 
-  const done = () => {
-    setStage('idle')
-    setUid(null)
-    onDone()
-  }
+  // More wrecks → straight to the next one; after the last → a short warp out.
+  const done = () => (run.salvage.length > 0 ? finish() : setStage('leaving'))
 
   const left = run.salvage.length + (stage === 'idle' ? 0 : 1)
   const onBoard = summarize(current?.pool ?? [])
@@ -74,7 +82,21 @@ export function SalvageScreen({
         {left > 1 && <span>ещё обломков: {left - 1}</span>}
       </div>
 
-      {stage !== 'reveal' ? (
+      {stage === 'leaving' ? (
+        <div className="warp">
+          {Array.from({ length: 28 }, (_, i) => (
+            <i
+              key={i}
+              style={{
+                top: `${noise(i + 1) * 100}%`,
+                animationDelay: `${noise(i + 40) * 0.3}s`,
+                width: `${20 + noise(i + 80) * 50}%`,
+              }}
+            />
+          ))}
+          <p className="crate-screen__hint">прыжок к верфи</p>
+        </div>
+      ) : stage !== 'reveal' ? (
         <div className="crate-stage">
           <div className="crate-glow" />
           <svg

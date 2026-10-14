@@ -189,6 +189,14 @@ export class BattleScene {
     this.render(this.lastT)
   }
 
+  /** Arrival from a jump, 0..1 (null = done). */
+  private introK: number | null = 0
+
+  setIntro(k: number | null) {
+    this.introK = k
+    this.render(this.lastT)
+  }
+
   render(t: number) {
     this.lastT = t
     if (!this.ready || !this.ships) return
@@ -201,7 +209,8 @@ export class BattleScene {
     const shake: Record<Side, number> = { player: 0, enemy: 0 }
 
     // During a jump the fight is frozen: no beams, flashes or numbers, just the ships.
-    const battleEvents = this.jumpAge === null ? events : []
+    const battleEvents =
+      this.jumpAge === null && this.introK === null ? events : []
     battleEvents.forEach((e, i) => {
       if (e.type === 'hit') {
         const from = this.ships![e.side]
@@ -434,6 +443,39 @@ export class BattleScene {
     }
 
     if (this.jumpAge !== null) this.drawJump(this.jumpAge)
+    if (this.introK !== null) this.drawIntro(this.introK)
+  }
+
+  /** Both ships drop out of a jump: they slide in from the screen edges with fading streaks. */
+  private drawIntro(k: number) {
+    const fx = this.fx
+    const W = this.app.screen.width
+    const ease = 1 - (1 - k) ** 3
+    for (const side of ['player', 'enemy'] as const) {
+      const ship = this.ships![side]
+      const color = side === 'enemy' ? AMBER : INK
+      const dir = side === 'player' ? -1 : 1 // where it comes from
+      const dist = (1 - ease) * (W * 0.6)
+      ship.root.pivot.x = -dir * dist
+      ship.root.alpha = Math.min(1, k * 3)
+      const cx = ship.center.x + dir * dist
+      for (let i = 0; i < 12; i++) {
+        const y =
+          ship.center.y +
+          (noise(i + (side === 'enemy' ? 200 : 300)) - 0.5) *
+            ship.radius.y *
+            1.8
+        const len = (40 + noise(i + 400) * 140) * (1 - ease)
+        const x0 = cx + dir * ship.radius.x * 0.6
+        fx.moveTo(x0, y).lineTo(x0 + dir * len, y)
+      }
+      fx.stroke({ width: 1.5, color, alpha: 0.6 * (1 - ease) })
+      if (k > 0.85) {
+        const f = (k - 0.85) / 0.15
+        fx.circle(ship.center.x, ship.center.y, ship.radius.x * (0.4 + f))
+        fx.fill({ color, alpha: 0.18 * (1 - f) })
+      }
+    }
   }
 
   /** Player ship spools up, flashes and streaks off-screen to the left. */

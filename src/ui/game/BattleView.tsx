@@ -21,6 +21,8 @@ interface Props {
 
 /** Same as BattleScene.JUMP_MS; kept here so Pixi stays lazy-loaded. */
 const JUMP_MS = 1_400
+/** Ships drop out of a jump before the fight starts. */
+const INTRO_MS = 900
 
 /** Time after the last hit for the destruction animation. */
 const TAIL_MS = 1_900
@@ -89,6 +91,18 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
   const [t, setT] = useState(0)
   // Emergency jump: combat time freezes at `at`, the jump animation runs for JUMP_MS.
   const [jump, setJump] = useState<{ at: number; start: number } | null>(null)
+  // The killing blow on the player: playback pauses just before it to offer a jump.
+  const lethalAt = useMemo(() => {
+    if (run.jumps <= 0) return null
+    const e = result.events.find(
+      (e) =>
+        (e.type === 'hit' || e.type === 'overheat') &&
+        e.target === 'player' &&
+        e.hullHp <= 0,
+    )
+    return e ? Math.max(0, e.t - 1) : null
+  }, [result, run.jumps])
+  const [declined, setDeclined] = useState(false)
   const speedRef = useRef(speed)
   useEffect(() => {
     speedRef.current = speed
@@ -98,9 +112,12 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
   const jumpRef = useRef(jump)
   const jumpDone = useRef(false)
   const onJumpRef = useRef(onJump)
+  const holdRef = useRef<number | null>(null)
+  const hold = lethalAt !== null && !declined ? lethalAt : null
   useEffect(() => {
     jumpRef.current = jump
     onJumpRef.current = onJump
+    holdRef.current = hold
   })
   const sceneRef = useRef<BattleScene | null>(null)
   const ships = useMemo(() => sceneShips(run, battle), [run, battle])
@@ -124,15 +141,27 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
 
   useEffect(() => {
     let frame = 0
-    let last = performance.now()
+    const start = performance.now()
+    let last = start
+    let introDone = false
     const tick = (now: number) => {
       const dt = (now - last) * speedRef.current
       last = now
-      setT((prev) =>
-        jumpRef.current
-          ? jumpRef.current.at
-          : Math.min(result.durationMs + TAIL_MS, prev + dt),
-      )
+      const intro = now - start
+      if (intro < INTRO_MS) {
+        sceneRef.current?.setIntro(intro / INTRO_MS)
+        frame = requestAnimationFrame(tick)
+        return
+      }
+      if (!introDone) {
+        introDone = true
+        sceneRef.current?.setIntro(null)
+      }
+      setT((prev) => {
+        if (jumpRef.current) return jumpRef.current.at
+        const limit = holdRef.current ?? result.durationMs + TAIL_MS
+        return Math.min(limit, prev + dt)
+      })
       if (jumpRef.current) {
         const age = now - jumpRef.current.start
         sceneRef.current?.setJump(age)
@@ -152,6 +181,7 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
   }, [t])
 
   const done = t >= result.durationMs
+  const critical = hold !== null && t >= hold && !jump
   // "Next" waits for the wreck animation to play out.
   const finished = t >= result.durationMs + TAIL_MS - 100
   const view = stateAt(battle, t)
@@ -193,6 +223,26 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
         </div>
         <div className="battle__stage" ref={stageRef}>
           {jump && <div className="jump-overlay">аварийный прыжок</div>}
+          {critical && (
+            <div className="critical">
+              <div className="critical__title">корпус критичен</div>
+              <p className="note">
+                следующее попадание уничтожит корабль. Аварийный прыжок вернёт
+                на верфь к этой же миссии и восстановит корабль.
+              </p>
+              <div className="critical__actions">
+                <button
+                  className="jump-button"
+                  onClick={() =>
+                    setJump({ at: hold, start: performance.now() })
+                  }
+                >
+                  ⚡ прыжок · осталось {run.jumps}
+                </button>
+                <button onClick={() => setDeclined(true)}>принять бой</button>
+              </div>
+            </div>
+          )}
         </div>
         {done && (
           <p className="battle__summary">
@@ -215,18 +265,16 @@ export function BattleView({ run, battle, onNext, onJump }: Props) {
               x{s}
             </button>
           ))}
-          {!done && !jump && run.jumps > 0 && (
-            <button
-              className="jump-button"
-              onClick={() => setJump({ at: t, start: performance.now() })}
-            >
-              ⚡ аварийный прыжок · {run.jumps}
-            </button>
-          )}
-          {!finished && !jump && (
+          {!finished && !jump && !critical && (
             <button
               onClick={() =>
-                setT(done ? result.durationMs + TAIL_MS : result.durationMs)
+                setT(
+                  hold !== null
+                    ? hold
+                    : done
+                      ? result.durationMs + TAIL_MS
+                      : result.durationMs,
+                )
               }
             >
               пропустить
