@@ -407,9 +407,8 @@ export function Shipyard({ run, dispatch }: Props) {
       {run.jumped && (
         <p className="jump-note">
           ⚡ аварийный прыжок: корабль как до боя, прыжков осталось {run.jumps}.
-          Аварийная стоянка: модули продаются по полной цене, одно обновление
-          магазина бесплатно — перестрой корабль против другого врага того же
-          уровня
+          Страховка флота поможет пересобрать корабль — впереди другой враг того
+          же уровня
         </p>
       )}
 
@@ -548,6 +547,7 @@ export function Shipyard({ run, dispatch }: Props) {
                 }}
               >
                 продать +{itemSellValue(runContext, run, selectedItem)}
+                {run.jumped && ' · полная цена'}
               </button>
               <button className="link-button" onClick={() => setSelected(null)}>
                 ✕
@@ -672,13 +672,25 @@ export function Shipyard({ run, dispatch }: Props) {
                   onClick={() => dispatch({ type: 'reroll' })}
                   title={`обновить · ${config.rerollCost} зол.`}
                 >
-                  ⟳ {freeReroll ? 'бесплатно' : config.rerollCost}
+                  ⟳ {freeReroll ? 'страховка' : config.rerollCost}
                 </button>
               </span>
             }
             className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
           >
             <div data-drop="sell">
+              {run.jumped && (
+                <p className="insurance">
+                  🛡 <b>Страховка флота.</b>{' '}
+                  <span className="insurance__long">
+                    После аварийного прыжка модули выкупаются по полной цене,
+                    одно обновление магазина — за счёт страховки.
+                  </span>
+                  <span className="insurance__short">
+                    выкуп по полной цене · ⟳ бесплатно
+                  </span>
+                </p>
+              )}
               <div className="shop">
                 {run.shop.map((defId, slot) => {
                   const tier = run.shopTiers[slot] ?? 1
@@ -733,12 +745,16 @@ export function Shipyard({ run, dispatch }: Props) {
                   onClick={() => dispatch({ type: 'reroll' })}
                 >
                   обновить ·{' '}
-                  {freeReroll ? 'бесплатно' : `${config.rerollCost} зол.`}
+                  {freeReroll
+                    ? 'за счёт страховки'
+                    : `${config.rerollCost} зол.`}
                 </button>
               </div>
               {ownedUid && dragging && (
                 <div className="sell-overlay">
-                  отпусти — продать за {sellValue} зол.
+                  {run.jumped
+                    ? `отпусти — страховка выкупит за ${sellValue} зол.`
+                    : `отпусти — продать за ${sellValue} зол.`}
                 </div>
               )}
             </div>
