@@ -117,3 +117,28 @@ describe('run', () => {
     expect(s.phase).toBe('over')
   })
 })
+
+test('buying with a placement puts the module straight onto the hull', () => {
+  let s = createRun(ctx, 1)
+  while (s.shop.indexOf('gun') < 0) s = reduceRun(ctx, s, { type: 'reroll' })
+  s = reduceRun(ctx, s, {
+    type: 'buy',
+    slot: s.shop.indexOf('gun'),
+    place: { x: 0, y: 1, rotation: 0 },
+  })
+  expect(s.bench).toEqual([])
+  expect(s.placed).toMatchObject([{ defId: 'gun', x: 0, y: 1 }])
+})
+
+test('enemy always gets a weapon first and only what fits the hull', () => {
+  const rich = { ...ctx, config: { ...ctx.config, enemyBudget: () => 100 } }
+  for (let seed = 1; seed <= 20; seed++) {
+    const { enemy } = createRun(rich, seed)
+    expect(enemy.modules[0]?.stats.kind).toBe('weapon')
+    const cells = enemy.modules.reduce(
+      (n, m) => n + (m.id.startsWith('gun') ? 2 : 1),
+      0,
+    )
+    expect(cells).toBeLessThanOrEqual(6) // 3×2 hull
+  }
+})

@@ -754,7 +754,7 @@ button:disabled:hover {
 
 .shipyard {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
   gap: 28px;
   align-items: start;
 }
@@ -1238,5 +1238,215 @@ button:disabled:hover {
 @media (max-width: 760px) {
   .battle__bars {
     gap: 12px;
+  }
+}
+
+/* ── drag & drop shipyard ─────────────────────────────── */
+
+.yard {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.yard .hull-wrap {
+  padding: 6px 0;
+}
+
+.bench {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 10px;
+  border: 1px dashed var(--ink-faint);
+  transition:
+    border-color 0.1s,
+    background 0.1s;
+}
+
+.bench__title {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 2px;
+}
+
+.bench .note {
+  margin: 0;
+}
+
+.is-dragging .bench {
+  border-color: var(--ink-dim);
+}
+
+.bench.is-over {
+  border: 1px solid var(--ink);
+  background: var(--ink-ghost);
+}
+
+.bench__item,
+.offer {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  border: 1px solid var(--ink-dim);
+}
+
+.bench__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font: 13px var(--font-mono);
+}
+
+.bench__item:hover,
+.offer:hover {
+  border-color: var(--ink);
+  background: var(--ink-ghost);
+}
+
+.offer.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.is-ghosted {
+  opacity: 0.25;
+}
+
+.cell.is-draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.is-dragging,
+.is-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.shop-sheet [data-drop='sell'] {
+  position: relative;
+}
+
+.sell-overlay {
+  position: absolute;
+  inset: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--pencil-red);
+  background: rgb(16 57 106 / 0.85);
+  color: var(--pencil-red);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.shop-sheet.is-over .sell-overlay {
+  border-style: solid;
+  background: rgb(80 40 50 / 0.85);
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.drag-ghost i {
+  position: absolute;
+  border: 1.5px solid var(--ink);
+  background-color: rgb(234 242 255 / 0.18);
+  background-image: inherit;
+}
+
+.rotate-fab {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: var(--paper-deep);
+  border: 1px solid var(--ink);
+  padding: 12px 20px;
+  font-size: 16px;
+  touch-action: none;
+}
+
+@media (max-width: 760px) {
+  .yard {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .yard .hull-wrap {
+    justify-content: center;
+  }
+
+  .bench {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-height: 64px;
+  }
+
+  .bench__title {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --cell: clamp(30px, 10vw, 46px);
+  }
+
+  /* hull → shop are neighbours on phones: drags stay short */
+  .shipyard__side {
+    flex-direction: column-reverse;
+  }
+
+  .shop {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .offer {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'shape'
+      'name'
+      'stats'
+      'price';
+    justify-items: start;
+    min-height: 0;
+    padding: 7px 6px;
+  }
+
+  .offer__name {
+    font-size: 14px;
+  }
+
+  .offer__stats {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .offer__price {
+    font-size: 12px;
+    margin-top: 4px;
+    padding-top: 4px;
+    width: 100%;
+  }
+
+  .offer--sold {
+    font-size: 11px;
+    min-height: 90px;
   }
 }

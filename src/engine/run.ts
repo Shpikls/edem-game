@@ -1,5 +1,5 @@
 import type { Placement, Rotation, Shape } from './grid.ts'
-import { checkPlacement } from './grid.ts'
+import { autoPlace, checkPlacement } from './grid.ts'
 import { createRng } from './rng.ts'
 import { simulate } from './simulate.ts'
 import type { BattleResult, BattleRules, ModuleStats, Ship } from './types.ts'
@@ -69,7 +69,12 @@ export interface RunState {
 }
 
 export type RunAction =
-  | { type: 'buy'; slot: number }
+  /** Buys into the bench, or straight onto the hull if `place` is given and fits. */
+  | {
+      type: 'buy'
+      slot: number
+      place?: { x: number; y: number; rotation: Rotation }
+    }
   | { type: 'reroll' }
   | { type: 'place'; uid: string; x: number; y: number; rotation: Rotation }
   | { type: 'unplace'; uid: string }
@@ -111,20 +116,35 @@ function rollShop(ctx: RunContext, rngState: number) {
   return { shop, rngState: rng.state }
 }
 
-/** Buys random affordable modules until the budget runs out. */
+/**
+ * Buys random affordable modules that still fit on the hull until the budget runs out.
+ * The first pick is always a weapon (if any is affordable) so the enemy can fight.
+ */
 function rollEnemy(ctx: RunContext, rngState: number, round: number) {
   const rng = createRng(rngState)
   let budget = ctx.config.enemyBudget(round)
-  const picks: string[] = []
+  const picks: CatalogEntry[] = []
+  const fits = (extra: CatalogEntry) =>
+    autoPlace(
+      ctx.hull,
+      [...picks, extra].map((c, i) => ({ id: String(i), shape: c.shape })),
+    ).every((p) => p !== null)
   for (;;) {
-    const affordable = ctx.catalog.filter((c) => c.price <= budget)
-    if (affordable.length === 0) break
-    const pick = rng.pick(affordable)
-    picks.push(pick.id)
+    let options = ctx.catalog.filter((c) => c.price <= budget && fits(c))
+    if (picks.length === 0 && options.some((c) => c.stats.kind === 'weapon')) {
+      options = options.filter((c) => c.stats.kind === 'weapon')
+    }
+    if (options.length === 0) break
+    const pick = rng.pick(options)
+    picks.push(pick)
     budget -= pick.price
   }
   return {
-    enemy: buildShip(ctx, ctx.config.enemyHullHp(round), picks),
+    enemy: buildShip(
+      ctx,
+      ctx.config.enemyHullHp(round),
+      picks.map((c) => c.id),
+    ),
     rngState: rng.state,
   }
 }
@@ -193,13 +213,17 @@ export function reduceRun(
       if (!defId) return state
       const { price } = entry(ctx, defId)
       if (price > state.gold) return state
-      return {
+      const uid = `i${state.nextUid}`
+      const bought: RunState = {
         ...state,
         gold: state.gold - price,
         shop: state.shop.map((s, i) => (i === action.slot ? null : s)),
-        bench: [...state.bench, { uid: `i${state.nextUid}`, defId }],
+        bench: [...state.bench, { uid, defId }],
         nextUid: state.nextUid + 1,
       }
+      return action.place
+        ? reduceRun(ctx, bought, { type: 'place', uid, ...action.place })
+        : bought
     }
     case 'reroll': {
       if (state.gold < ctx.config.rerollCost) return state

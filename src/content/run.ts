@@ -7,15 +7,16 @@ import { frigate } from './ships.ts'
 export const runConfig: RunConfig = {
   rounds: 10,
   lives: 5,
-  startGold: 10,
-  income: 6,
-  winBonus: 2,
+  // ~1–2 modules per round: prices are 2–4.
+  startGold: 6,
+  income: 3,
+  winBonus: 1,
   rerollCost: 1,
   shopSize: 4,
   hullHp: frigate.hullHp,
-  // Roughly 80% of what the player could have spent by this round.
-  enemyBudget: (round) => Math.round(0.8 * (10 + 6 * (round - 1))),
-  enemyHullHp: (round) => 80 + 10 * round,
+  // Roughly what the player could have spent by this round, minus a bit.
+  enemyBudget: (round) => 4 + 3 * (round - 1),
+  enemyHullHp: (round) => 80 + 8 * round,
 }
 
 export const runContext: RunContext = {
