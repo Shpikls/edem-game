@@ -555,19 +555,21 @@ export class BattleScene {
       const lx = ship.mirror ? ship.width - 1 - c.x : c.x
       const ox = ship.root.x + lx * ship.cell + ship.cell / 2
       const oy = ship.root.y + c.y * ship.cell + ship.cell / 2
-      const dx = ox - ship.center.x + (noise(seed + i) - 0.5) * ship.cell
-      const dy = oy - ship.center.y + (noise(seed + i + 50) - 0.5) * ship.cell
-      const len = Math.hypot(dx, dy) || 1
-      // modest spread: the wreck should still read as a broken ship
-      const speed = 0.015 + noise(seed + i * 3) * 0.03
-      const settle = Math.min(age, T)
-      const dist = speed * settle * (1 - k / 2) // decelerating drift
-      const bob = age > T ? Math.sin((age - T) / 900 + i) * 2 : 0
-      const x = ox + (dx / len) * dist
-      const y = oy + (dy / len) * dist + bob
+      // Same loose layout as the salvage screen: cells pushed slightly outwards,
+      // a little random offset and tilt — the ship still reads as a broken ship.
+      const cxCell = (ship.width - 1) / 2
+      const cyCell = (ship.height - 1) / 2
+      const ex =
+        ((lx - cxCell) * 0.125 + (noise(seed + i + 1) - 0.5) * 0.3) * ship.cell
+      const ey =
+        ((c.y - cyCell) * 0.125 + (noise(seed + i + 9) - 0.5) * 0.3) * ship.cell
+      const pop = 1 - (1 - Math.min(1, age / 450)) ** 3 // quick break-apart, then settle
+      const bob = age > 450 ? Math.sin((age - 450) / 900 + i) * 1.5 : 0
+      const x = ox + ex * pop
+      const y = oy + ey * pop + bob
       const rot =
-        (noise(seed + i * 7) - 0.5) * k * 4 +
-        (age > T ? Math.sin((age - T) / 1400 + i * 2) * 0.05 : 0)
+        (noise(seed + i + 17) - 0.5) * 0.42 * pop +
+        (age > 450 ? Math.sin((age - 450) / 1400 + i * 2) * 0.03 : 0)
       const h = ship.cell * 0.44
       const pts = [
         [-h, -h],
