@@ -22,7 +22,7 @@ interface Props {
   cracks?: ReadonlySet<string>
   /** Modules that won't fight (sit on cracks). */
   disabled?: ReadonlySet<string>
-  onCrackClick?: (cell: string) => void
+  onCrackClick?: ((cell: string) => void) | undefined
   onModulePointerDown?: (
     uid: string,
     cell: { x: number; y: number },

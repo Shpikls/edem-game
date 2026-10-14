@@ -12,7 +12,7 @@ export const runConfig: RunConfig = {
   income: 3,
   winBonus: 1,
   rerollCost: 1,
-  shopSize: 4,
+  shopSize: 5,
   hullHp: frigate.hullHp,
   // Roughly what the player could have spent by this round, minus a bit.
   enemyBudget: (round) => 4 + 3 * (round - 1),
@@ -21,6 +21,7 @@ export const runConfig: RunConfig = {
   crateOdds: [0.6, 0.3, 0.1],
   damagePerCrack: 20,
   repairCost: 2,
+  stationEvery: 2,
 }
 
 export const runContext: RunContext = {

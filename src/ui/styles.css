@@ -2023,3 +2023,17 @@ button:disabled:hover {
   min-height: 48px;
   flex: none;
 }
+
+.station-off__when {
+  margin: 4px 0 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .shipyard__side.is-off-station {
+    flex-direction: column;
+  }
+}

@@ -55,6 +55,7 @@ const ctx: RunContext = {
     crateOdds: [0.6, 0.3, 0.1],
     damagePerCrack: 10,
     repairCost: 2,
+    stationEvery: 1,
   },
 }
 
@@ -197,4 +198,26 @@ describe('cracks, repair, crates', () => {
     const ship = buildShip(ctx, 10, [{ defId: 'gun', tier: 3 }])
     expect(ship.modules[0]!.stats).toMatchObject({ damage: 20 })
   })
+})
+
+test('station rounds: shop, repair and selling only every N rounds', () => {
+  const every2 = {
+    ...ctx,
+    config: { ...ctx.config, stationEvery: 2, lives: 10 },
+  }
+  let s = createRun(every2, 1)
+  expect(s.station).toBe(true)
+  expect(s.shop.length).toBeGreaterThan(0)
+  s = reduceRun(every2, s, { type: 'fight' })
+  s = reduceRun(every2, s, { type: 'next' })
+  expect(s.round).toBe(2)
+  expect(s.station).toBe(false)
+  expect(s.shop).toEqual([])
+  const off = { ...s, cracks: ['0,0'], gold: 10 }
+  expect(reduceRun(every2, off, { type: 'repair', cell: '0,0' })).toBe(off)
+  expect(reduceRun(every2, off, { type: 'reroll' })).toBe(off)
+  s = reduceRun(every2, s, { type: 'fight' })
+  s = reduceRun(every2, s, { type: 'next' })
+  expect(s.round).toBe(3)
+  expect(s.station).toBe(true)
 })

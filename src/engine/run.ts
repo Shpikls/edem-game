@@ -32,6 +32,8 @@ export interface RunConfig {
   /** One hull cell cracks per this much hull damage taken in a battle. */
   damagePerCrack: number
   repairCost: number
+  /** A supply station (shop, repair, selling) opens every N rounds, starting with round 1. */
+  stationEvery: number
 }
 
 export type Tier = 1 | 2 | 3
@@ -86,6 +88,8 @@ export interface RunState {
   cracks: string[]
   /** Unopened loot crates. */
   crates: number
+  /** Supply station this round: shop, repair and selling are available. */
+  station: boolean
 }
 
 export type RunAction =
@@ -114,6 +118,15 @@ const entry = (ctx: RunContext, defId: string): CatalogEntry => {
 }
 
 export const cellKey = (c: Cell) => `${c.x},${c.y}`
+
+export const isStationRound = (ctx: RunContext, round: number) =>
+  (round - 1) % ctx.config.stationEvery === 0
+
+/** Rounds until the next station (0 = this round). */
+export function roundsToStation(ctx: RunContext, round: number): number {
+  const k = ctx.config.stationEvery
+  return (k - ((round - 1) % k)) % k
+}
 
 export function scaleStats(stats: ModuleStats, m: number): ModuleStats {
   const r = (v: number) => Math.round(v * m)
@@ -213,12 +226,16 @@ function rollEnemy(ctx: RunContext, rngState: number, round: number) {
 }
 
 function startRound(ctx: RunContext, state: RunState, round: number): RunState {
-  const shop = rollShop(ctx, state.rngState)
+  const station = isStationRound(ctx, round)
+  const shop = station
+    ? rollShop(ctx, state.rngState)
+    : { shop: [], rngState: state.rngState }
   const enemy = rollEnemy(ctx, shop.rngState, round)
   return {
     ...state,
     round,
     phase: 'shop',
+    station,
     shop: shop.shop,
     enemy: enemy.enemy,
     rngState: enemy.rngState,
@@ -241,6 +258,7 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     nextUid: 1,
     cracks: [],
     crates: 0,
+    station: true,
   }
   return startRound(ctx, base, 1)
 }
@@ -274,6 +292,9 @@ export function reduceRun(
       state.round + 1,
     )
   }
+
+  const stationOnly = ['buy', 'reroll', 'sell', 'repair', 'repairAll']
+  if (!state.station && stationOnly.includes(action.type)) return state
 
   switch (action.type) {
     case 'buy': {

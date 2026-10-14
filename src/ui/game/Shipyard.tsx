@@ -9,6 +9,7 @@ import {
 import { runContext } from '../../content/run.ts'
 import {
   isCracked,
+  roundsToStation,
   itemStats,
   sellPrice,
   type Rotation,
@@ -383,6 +384,7 @@ export function Shipyard({ run, dispatch }: Props) {
   }
 
   const enemy = summarizeShip(run.enemy)
+  const stationIn = roundsToStation(runContext, run.round)
   const dragging = drag?.moved ? drag : null
   const sellValue =
     dragging && ownedUid ? sellPrice(def(dragging.defId).price) : 0
@@ -397,7 +399,11 @@ export function Shipyard({ run, dispatch }: Props) {
               items={gridItems}
               cracks={cracks}
               disabled={disabled}
-              onCrackClick={(cell) => dispatch({ type: 'repair', cell })}
+              onCrackClick={
+                run.station
+                  ? (cell) => dispatch({ type: 'repair', cell })
+                  : undefined
+              }
               preview={preview}
               hiddenUid={
                 dragging && drag?.source.kind === 'hull'
@@ -508,6 +514,8 @@ export function Shipyard({ run, dispatch }: Props) {
                 </button>
               )}
               <button
+                disabled={!run.station}
+                title={run.station ? undefined : 'продажа — на станции'}
                 onClick={() => {
                   dispatch({ type: 'sell', uid: selected.uid })
                   setSelected(null)
@@ -523,8 +531,10 @@ export function Shipyard({ run, dispatch }: Props) {
             </>
           ) : (
             <span className="note">
-              тяни модули из снабжения на корпус. Чтобы повернуть — проведи
-              модуль через «↻». Тап по модулю — меню.
+              {run.station
+                ? 'тяни модули из снабжения на корпус. '
+                : 'расставь модули со склада. '}
+              Чтобы повернуть — проведи модуль через «↻». Тап по модулю — меню.
             </span>
           )}
         </div>
@@ -534,28 +544,38 @@ export function Shipyard({ run, dispatch }: Props) {
               трещин в корпусе: {run.cracks.length}
               {disabled.size > 0 && ` · не работает модулей: ${disabled.size}`}
             </span>
-            <button
-              disabled={run.gold < config.repairCost}
-              onClick={() => dispatch({ type: 'repairAll' })}
-            >
-              починить ·{' '}
-              {Math.max(
-                1,
-                Math.min(
-                  run.cracks.length,
-                  Math.floor(run.gold / config.repairCost),
-                ),
-              ) * config.repairCost}{' '}
-              зол.
-            </button>
-            <span className="note">
-              или тап по трещине — {config.repairCost} зол. за клетку
-            </span>
+            {run.station ? (
+              <>
+                <button
+                  disabled={run.gold < config.repairCost}
+                  onClick={() => dispatch({ type: 'repairAll' })}
+                >
+                  починить ·{' '}
+                  {Math.max(
+                    1,
+                    Math.min(
+                      run.cracks.length,
+                      Math.floor(run.gold / config.repairCost),
+                    ),
+                  ) * config.repairCost}{' '}
+                  зол.
+                </button>
+                <span className="note">
+                  или тап по трещине — {config.repairCost} зол. за клетку
+                </span>
+              </>
+            ) : (
+              <span className="note">
+                ремонт — на станции снабжения{' '}
+                {stationIn === 1 ? 'через 1 бой' : `через ${stationIn} боя`}.
+                Пока можно переставить модули в обход трещин.
+              </span>
+            )}
           </div>
         )}
       </Sheet>
 
-      <div className="shipyard__side">
+      <div className={`shipyard__side ${run.station ? '' : 'is-off-station'}`}>
         <Sheet
           num="02"
           title={`Противник · раунд ${run.round}`}
@@ -572,67 +592,83 @@ export function Shipyard({ run, dispatch }: Props) {
           </button>
         </Sheet>
 
-        <Sheet
-          num="03"
-          title="Снабжение"
-          aside={<span className="gold">{run.gold} зол.</span>}
-          className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
-        >
-          <div data-drop="sell">
-            <div className="shop">
-              {run.shop.map((defId, slot) =>
-                defId ? (
-                  <div
-                    key={slot}
-                    className={[
-                      'offer',
-                      `offer--${def(defId).stats.kind}`,
-                      def(defId).price > run.gold && 'is-disabled',
-                      dragging &&
-                        drag?.source.kind === 'shop' &&
-                        drag.source.slot === slot &&
-                        'is-ghosted',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onPointerDown={(e) =>
-                      def(defId).price <= run.gold &&
-                      startDrag(e, { kind: 'shop', slot }, defId, 0)
-                    }
-                  >
-                    <span className="offer__art">
-                      <ModuleArt defId={defId} cell="18px" grid />
-                    </span>
-                    <span className="offer__name">{def(defId).name}</span>
-                    <span className="offer__stats">
-                      {describeStats(def(defId).stats)}
-                    </span>
-                    <span className="offer__price">
-                      {def(defId).price} зол.
-                    </span>
-                  </div>
-                ) : (
-                  <div key={slot} className="offer offer--sold">
-                    продано
-                  </div>
-                ),
+        {run.station ? (
+          <Sheet
+            num="03"
+            title="Станция снабжения"
+            aside={<span className="gold">{run.gold} зол.</span>}
+            className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
+          >
+            <div data-drop="sell">
+              <div className="shop">
+                {run.shop.map((defId, slot) =>
+                  defId ? (
+                    <div
+                      key={slot}
+                      className={[
+                        'offer',
+                        `offer--${def(defId).stats.kind}`,
+                        def(defId).price > run.gold && 'is-disabled',
+                        dragging &&
+                          drag?.source.kind === 'shop' &&
+                          drag.source.slot === slot &&
+                          'is-ghosted',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onPointerDown={(e) =>
+                        def(defId).price <= run.gold &&
+                        startDrag(e, { kind: 'shop', slot }, defId, 0)
+                      }
+                    >
+                      <span className="offer__art">
+                        <ModuleArt defId={defId} cell="18px" grid />
+                      </span>
+                      <span className="offer__name">{def(defId).name}</span>
+                      <span className="offer__stats">
+                        {describeStats(def(defId).stats)}
+                      </span>
+                      <span className="offer__price">
+                        {def(defId).price} зол.
+                      </span>
+                    </div>
+                  ) : (
+                    <div key={slot} className="offer offer--sold">
+                      продано
+                    </div>
+                  ),
+                )}
+              </div>
+              <div className="add-row shop__actions">
+                <button
+                  disabled={run.gold < config.rerollCost}
+                  onClick={() => dispatch({ type: 'reroll' })}
+                >
+                  обновить · {config.rerollCost} зол.
+                </button>
+              </div>
+              {ownedUid && dragging && (
+                <div className="sell-overlay">
+                  отпусти — продать за {sellValue} зол.
+                </div>
               )}
             </div>
-            <div className="add-row shop__actions">
-              <button
-                disabled={run.gold < config.rerollCost}
-                onClick={() => dispatch({ type: 'reroll' })}
-              >
-                обновить · {config.rerollCost} зол.
-              </button>
-            </div>
-            {ownedUid && dragging && (
-              <div className="sell-overlay">
-                отпусти — продать за {sellValue} зол.
-              </div>
-            )}
-          </div>
-        </Sheet>
+          </Sheet>
+        ) : (
+          <Sheet
+            num="03"
+            title="Станция снабжения"
+            aside={<span className="gold">{run.gold} зол.</span>}
+            className="station-off"
+          >
+            <p className="station-off__when">
+              {stationIn === 1 ? 'через 1 бой' : `через ${stationIn} боя`}
+            </p>
+            <p className="note">
+              там магазин, ремонт корпуса и продажа модулей. Золото копится.
+            </p>
+          </Sheet>
+        )}
       </div>
 
       {revealItem && (
