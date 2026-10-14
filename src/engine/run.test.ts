@@ -399,3 +399,16 @@ test('shop offers are all different module types', () => {
     }
   }
 })
+
+test('repair all fixes cracks under modules first when gold is short', () => {
+  let s = createRun(ctx, 1)
+  while (s.shop.indexOf('gun') < 0) s = reduceRun(ctx, s, { type: 'reroll' })
+  s = reduceRun(ctx, s, {
+    type: 'buy',
+    slot: s.shop.indexOf('gun'),
+    place: { x: 1, y: 1, rotation: 0 },
+  })
+  s = { ...s, cracks: ['0,0', '2,0', '1,1'], gold: 2 } // gun sits on 1,1
+  s = reduceRun(ctx, s, { type: 'repairAll' })
+  expect(s.cracks).toEqual(['0,0', '2,0'])
+})

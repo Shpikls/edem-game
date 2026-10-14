@@ -570,10 +570,20 @@ export function reduceRun(
         Math.floor(state.gold / ctx.config.repairCost),
       )
       if (n === 0) return state
+      // Cracks under modules first, so the modules fight again.
+      const occupied = new Set(
+        state.placed.flatMap((p) =>
+          placedCells(toPlacement(ctx, p)).map(cellKey),
+        ),
+      )
+      const order = [
+        ...state.cracks.filter((k) => occupied.has(k)),
+        ...state.cracks.filter((k) => !occupied.has(k)),
+      ]
       return {
         ...state,
         gold: state.gold - n * ctx.config.repairCost,
-        cracks: state.cracks.slice(n),
+        cracks: order.slice(n),
       }
     }
     case 'searchWreck': {

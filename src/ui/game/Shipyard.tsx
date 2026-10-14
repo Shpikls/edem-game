@@ -376,6 +376,10 @@ export function Shipyard({ run, dispatch }: Props) {
   }
 
   const stationIn = roundsToStation(runContext, run.round)
+  const repairable = Math.min(
+    run.cracks.length,
+    Math.floor(run.gold / config.repairCost),
+  )
   const dragging = drag?.moved ? drag : null
   const sellValue =
     dragging && ownedUid ? sellPrice(def(dragging.defId).price) : 0
@@ -543,19 +547,19 @@ export function Shipyard({ run, dispatch }: Props) {
             {run.station ? (
               <>
                 <button
-                  disabled={run.gold < config.repairCost}
+                  disabled={repairable === 0}
                   onClick={() => dispatch({ type: 'repairAll' })}
                 >
-                  починить ·{' '}
-                  {Math.max(
-                    1,
-                    Math.min(
-                      run.cracks.length,
-                      Math.floor(run.gold / config.repairCost),
-                    ),
-                  ) * config.repairCost}{' '}
-                  зол.
+                  {repairable === run.cracks.length
+                    ? `починить всё · ${repairable * config.repairCost} зол.`
+                    : `починить ${repairable} из ${run.cracks.length} · ${repairable * config.repairCost} зол.`}
                 </button>
+                {repairable < run.cracks.length && (
+                  <span className="redline">
+                    на весь ремонт нужно {run.cracks.length * config.repairCost}{' '}
+                    зол.
+                  </span>
+                )}
                 <span className="note">
                   или тап по трещине — {config.repairCost} зол. за клетку
                 </span>
