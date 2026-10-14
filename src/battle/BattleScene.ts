@@ -428,9 +428,7 @@ export class BattleScene {
     for (const side of ['player', 'enemy'] as const) {
       const ship = this.ships[side]
       const dead =
-        t >= durationMs &&
-        (winner === 'draw' ? true : winner !== side) &&
-        lastHull(events, side) <= 0
+        t >= durationMs && winner !== side && lastHull(events, side) <= 0
       const age = t - durationMs
       // The intact ship vanishes after the first flash; fragments take over.
       ship.root.alpha = dead ? (age < 120 ? 1 : 0) : 1

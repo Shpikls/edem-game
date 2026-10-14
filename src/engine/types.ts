@@ -90,7 +90,8 @@ export type BattleEvent =
   | { t: number; type: 'destroyed'; side: Side }
 
 export interface BattleResult {
-  winner: Side | 'draw'
+  /** Always a side: simultaneous deaths and time-outs are tie-broken. */
+  winner: Side
   durationMs: number
   events: BattleEvent[]
 }

@@ -220,9 +220,7 @@ export function BattleView({ run, battle, onNext }: Props) {
                 ? `победа +${runContext.config.winBonus} зол.`
                 : battle.autoJump
                   ? `аварийный прыжок · +${runContext.config.lossBonus} зол.`
-                  : result.winner === 'enemy'
-                    ? 'корабль уничтожен'
-                    : 'ничья'}
+                  : 'корабль уничтожен'}
             </span>
           ) : undefined
         }

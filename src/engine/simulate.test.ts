@@ -123,16 +123,32 @@ describe('simulate', () => {
     expect(hits).toEqual([300, 500, 800, 1_000])
   })
 
-  test('simultaneous lethal hits are a draw, not a first-mover win', () => {
+  test('simultaneous kills: the one knocked less far below zero wins with 1 hull', () => {
+    // Both die at 1 s; the player overkills less (10 → −2) than the enemy (10 → −5).
+    const result = simulate(
+      ship(10, laser('a#1', 15)),
+      ship(10, laser('b#1', 12)),
+      1,
+      rules,
+    )
+    expect(result.winner).toBe('player')
+    expect(result.durationMs).toBe(1_000)
+    const destroyed = result.events.filter((e) => e.type === 'destroyed')
+    expect(destroyed).toEqual([{ t: 1_000, type: 'destroyed', side: 'enemy' }])
+    const lastHitOnPlayer = result.events.findLast(
+      (e) => e.type === 'hit' && e.target === 'player',
+    )
+    expect(lastHitOnPlayer).toMatchObject({ hullHp: 1 })
+  })
+
+  test('perfectly symmetric kill still has a winner', () => {
     const result = simulate(
       ship(10, laser('a#1', 10)),
       ship(10, laser('b#1', 10)),
       1,
       rules,
     )
-    expect(result.winner).toBe('draw')
-    expect(result.durationMs).toBe(1_000)
-    expect(result.events.filter((e) => e.type === 'destroyed')).toHaveLength(2)
+    expect(['player', 'enemy']).toContain(result.winner)
   })
 
   test('outcome does not depend on which side is the player', () => {
@@ -155,18 +171,42 @@ describe('simulate', () => {
     ).toEqual([1, 1, 2, 2, 3, 3, 4, 4])
   })
 
-  test('equal ships under overheat die together → draw', () => {
-    expect(simulate(ship(10), ship(10), 1, rules).winner).toBe('draw')
+  test('equal ships under overheat: still a winner', () => {
+    expect(['player', 'enemy']).toContain(
+      simulate(ship(10), ship(10), 1, rules).winner,
+    )
   })
 
-  test('maxDuration is a safety net that yields a draw', () => {
+  test('no draws across many random battles', () => {
+    for (let i = 0; i < 200; i++) {
+      const a = ship(
+        20 + (i % 7) * 10,
+        laser('a#1', 3 + (i % 5), 600 + (i % 4) * 300),
+      )
+      const b = ship(
+        20 + (i % 5) * 10,
+        rail('b#1', 5 + (i % 6), 900 + (i % 3) * 400),
+      )
+      const w = simulate(a, b, i, rules).winner
+      expect(w === 'player' || w === 'enemy').toBe(true)
+    }
+  })
+
+  test('time limit: larger hull share wins', () => {
     const noOverheat = {
       ...rules,
       overheatStartMs: Infinity,
       maxDurationMs: 5_000,
     }
-    const result = simulate(ship(10), ship(10), 1, noOverheat)
-    expect(result).toEqual({ winner: 'draw', durationMs: 5_000, events: [] })
+    const result = simulate(
+      ship(20),
+      ship(10, laser('x#1', 1, 1_000)),
+      1,
+      noOverheat,
+    )
+    // player 20 → 15 (75%), enemy untouched (100%) → enemy wins on share
+    expect(result.winner).toBe('enemy')
+    expect(result.durationMs).toBe(5_000)
   })
 
   test('default content rules end a 100 HP vs 100 HP standoff by ~40 s', () => {

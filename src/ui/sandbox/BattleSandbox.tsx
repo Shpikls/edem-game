@@ -28,7 +28,6 @@ type Ships = Record<Side, SandboxShip>
 const outcomeText: Record<BattleResult['winner'], string> = {
   player: 'Победил игрок',
   enemy: 'Победил враг',
-  draw: 'Ничья',
 }
 
 const defaultShips = (): Ships => ({

@@ -25,6 +25,10 @@ interface ShieldRegenState {
 }
 
 interface ShipState {
+  /** Hull without the clamp at 0: how far below zero a ship was knocked (tie-breaks). */
+  rawHull: number
+  maxHull: number
+  damageDealt: number
   side: Side
   hullHp: number
   shieldHp: number
@@ -49,6 +53,9 @@ function initShip(side: Side, ship: Ship): ShipState {
   const state: ShipState = {
     side,
     hullHp: ship.hullHp,
+    rawHull: ship.hullHp,
+    maxHull: ship.hullHp,
+    damageDealt: 0,
     shieldHp: 0,
     shieldMax: 0,
     armor: 0,
@@ -147,7 +154,8 @@ function applyHit(
       toHull - armor,
     )
   }
-  target.hullHp = Math.max(0, target.hullHp - hullDamage)
+  target.rawHull -= hullDamage
+  target.hullHp = Math.max(0, target.rawHull)
   return { absorbed, blocked: toHull - hullDamage, hullDamage }
 }
 
@@ -173,6 +181,7 @@ export function simulate(
   const events: BattleEvent[] = []
 
   for (let t = rules.tickMs; t <= rules.maxDurationMs; t += rules.tickMs) {
+    const tickStart = events.length
     for (const ship of ships) {
       const target = shipBySide[opponent(ship.side)]
       for (const weapon of ship.weapons) {
@@ -184,6 +193,7 @@ export function simulate(
             weapon.damageType,
             rules,
           )
+          ship.damageDealt += weapon.damage
           events.push({
             t,
             type: 'hit',
@@ -224,7 +234,8 @@ export function simulate(
       const pulse = sinceOverheat / rules.overheatIntervalMs
       const amount = rules.overheatBaseDamage + pulse * rules.overheatDamageStep
       for (const ship of ships) {
-        ship.hullHp = Math.max(0, ship.hullHp - amount)
+        ship.rawHull -= amount
+        ship.hullHp = Math.max(0, ship.rawHull)
         events.push({
           t,
           type: 'overheat',
@@ -237,12 +248,43 @@ export function simulate(
 
     const dead = ships.filter((ship) => ship.hullHp <= 0)
     if (dead.length > 0) {
-      for (const ship of dead)
-        events.push({ t, type: 'destroyed', side: ship.side })
-      const winner = dead.length === 2 ? 'draw' : opponent(dead[0]!.side)
+      let winner: Side
+      if (dead.length === 1) {
+        winner = opponent(dead[0]!.side)
+      } else {
+        // Both went down in the same tick — no draws: the one knocked less far
+        // below zero wins, then the one who dealt more damage, then the player.
+        // The winner limps away with 1 hull.
+        const [p, e] = ships
+        winner =
+          p.rawHull !== e.rawHull
+            ? p.rawHull > e.rawHull
+              ? 'player'
+              : 'enemy'
+            : p.damageDealt !== e.damageDealt
+              ? p.damageDealt > e.damageDealt
+                ? 'player'
+                : 'enemy'
+              : 'player'
+        const survivor = shipBySide[winner]
+        survivor.hullHp = 1
+        for (let i = tickStart; i < events.length; i++) {
+          const ev = events[i]!
+          if (
+            (ev.type === 'hit' || ev.type === 'overheat') &&
+            ev.target === winner
+          )
+            events[i] = { ...ev, hullHp: Math.max(1, ev.hullHp) }
+        }
+      }
+      events.push({ t, type: 'destroyed', side: opponent(winner) })
       return { winner, durationMs: t, events }
     }
   }
 
-  return { winner: 'draw', durationMs: rules.maxDurationMs, events }
+  // Time limit (only reachable with overheat disabled): larger hull share wins.
+  const [p, e] = ships
+  const winner =
+    p.hullHp / p.maxHull >= e.hullHp / e.maxHull ? 'player' : 'enemy'
+  return { winner, durationMs: rules.maxDurationMs, events }
 }
