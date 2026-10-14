@@ -3081,3 +3081,154 @@ button:disabled:hover {
 .ship-frame:has(.cell--repairable) .hull-art {
   opacity: 0.55;
 }
+
+/* ── battle end: full-screen result ───────────────────── */
+
+.battle-end {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(6 22 46 / 0.72);
+  animation: fade 0.3s;
+}
+
+.battle-end__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 440px);
+  padding: 26px 22px 22px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  text-align: center;
+  animation: pop 0.4s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.battle-end__title {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.battle-end--win .battle-end__card {
+  border-color: #06d6a0;
+}
+.battle-end--win .battle-end__title {
+  color: #06d6a0;
+}
+.battle-end--jump .battle-end__card,
+.battle-end--lost .battle-end__card {
+  border-color: var(--pencil-red);
+}
+.battle-end--jump .battle-end__title,
+.battle-end--lost .battle-end__title {
+  color: var(--pencil-red);
+}
+
+.battle-end__line {
+  margin: 0;
+  font-size: 16px;
+}
+
+.battle-end__line--dim {
+  color: var(--ink-dim);
+}
+
+.battle-end .battle-end__next {
+  margin: 14px 0 0;
+  width: 100%;
+  font-size: 24px;
+  padding: 14px 0 12px;
+  transform: none;
+}
+
+/* ── warp to the next point ───────────────────────────── */
+
+.warp i {
+  animation-iteration-count: infinite;
+}
+
+.warp__course {
+  position: absolute;
+  top: 18%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: fade 0.5s;
+}
+
+.warp__course span {
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.warp__course b {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0 12px;
+}
+
+.warp__ship {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: min(46vw, 260px);
+  height: auto;
+  overflow: visible;
+  animation: flyby 3s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes flyby {
+  0% {
+    transform: translate(-110%, -50%);
+  }
+  35% {
+    transform: translate(calc(50vw - 55%), -50%);
+  }
+  65% {
+    transform: translate(calc(50vw - 45%), -50%);
+  }
+  100% {
+    transform: translate(110vw, -50%);
+  }
+}
+
+.ship-glyph__hull {
+  fill: rgb(16 57 106 / 0.95);
+  stroke: var(--ink);
+  stroke-width: 0.09;
+  stroke-linejoin: round;
+}
+
+.ship-glyph__fin {
+  fill: rgb(16 57 106 / 0.9);
+  stroke: var(--ink);
+  stroke-width: 0.07;
+}
+
+.ship-glyph__line {
+  fill: none;
+  stroke: var(--ink-dim);
+  stroke-width: 0.06;
+  stroke-linecap: round;
+}
+
+.ship-glyph__flame {
+  fill: #a8dcff;
+  filter: drop-shadow(0 0 0.4px #fff);
+  animation: blink 0.15s steps(2) infinite;
+}

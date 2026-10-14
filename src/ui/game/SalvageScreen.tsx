@@ -3,10 +3,11 @@ import { runContext } from '../../content/run.ts'
 import { itemStats, type RunAction, type RunState } from '../../engine/index.ts'
 import { def, describeStats } from './describe.ts'
 import { ModuleArt } from './ModuleArt.tsx'
+import { ShipGlyph } from './ShipGlyph.tsx'
 
 const SCAN_MS = 2000
 /** Warp transition back to the shipyard after the last wreck. */
-const LEAVE_MS = 900
+const LEAVE_MS = 3000
 const CELL = 40
 
 type Stage = 'idle' | 'scanning' | 'reveal' | 'leaving'
@@ -77,24 +78,34 @@ export function SalvageScreen({
       className={`crate-screen salvage salvage--${stage} crate-screen--t${tier}`}
       onClick={stage === 'idle' ? search : undefined}
     >
-      <div className="crate-screen__head">
-        <span>обломки врага · раунд {current?.round ?? run.round - 1}</span>
-        {left > 1 && <span>ещё обломков: {left - 1}</span>}
-      </div>
+      {stage !== 'leaving' && (
+        <div className="crate-screen__head">
+          <span>обломки врага · раунд {current?.round ?? run.round - 1}</span>
+          {left > 1 && <span>ещё обломков: {left - 1}</span>}
+        </div>
+      )}
 
       {stage === 'leaving' ? (
         <div className="warp">
-          {Array.from({ length: 28 }, (_, i) => (
+          {Array.from({ length: 36 }, (_, i) => (
             <i
               key={i}
               style={{
                 top: `${noise(i + 1) * 100}%`,
-                animationDelay: `${noise(i + 40) * 0.3}s`,
-                width: `${20 + noise(i + 80) * 50}%`,
+                animationDelay: `${noise(i + 40) * 1.2}s`,
+                animationDuration: `${0.5 + noise(i + 60) * 0.6}s`,
+                width: `${15 + noise(i + 80) * 40}%`,
               }}
             />
           ))}
-          <p className="crate-screen__hint">прыжок к верфи</p>
+          <div className="warp__course">
+            <span>курс</span>
+            <b>
+              {run.station ? 'станция снабжения' : 'точка встречи'} · миссия{' '}
+              {run.round}/{runContext.config.rounds}
+            </b>
+          </div>
+          <ShipGlyph className="warp__ship" />
         </div>
       ) : stage !== 'reveal' ? (
         <div className="crate-stage">
