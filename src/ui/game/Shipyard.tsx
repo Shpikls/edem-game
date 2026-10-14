@@ -406,8 +406,8 @@ export function Shipyard({ run, dispatch }: Props) {
     <div className={`shipyard ${dragging ? 'is-dragging' : ''}`}>
       {run.jumped && (
         <p className="jump-note">
-          ⚡ аварийный прыжок спас корабль: он восстановлен, прыжков осталось{' '}
-          {run.jumps}. Впереди другой противник того же уровня
+          ⚡ аварийный прыжок спас корабль, прыжков осталось {run.jumps}.
+          Повреждения остались. Впереди другой противник того же уровня
         </p>
       )}
 

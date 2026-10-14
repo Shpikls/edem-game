@@ -299,7 +299,7 @@ export function BattleView({ run, battle, onNext }: Props) {
             result.winner === 'player'
               ? `+${runContext.config.winBonus} зол. · обломки врага можно обыскать`
               : battle.autoJump
-                ? `+${runContext.config.lossBonus} зол. · корабль восстановлен · прыжков: ${run.jumps}`
+                ? `+${runContext.config.lossBonus} зол. · корабль спасён · прыжков: ${run.jumps}`
                 : 'аварийных прыжков не осталось'
           }
           sub={

@@ -342,14 +342,16 @@ describe("emergency jumps are the ship's lives", () => {
     },
   }
 
-  test('a loss auto-jumps: ship repaired, same mission, +gold, enemy level kept', () => {
+  test('a loss auto-jumps: no repair, same mission, +gold, enemy level kept', () => {
     let s = { ...createRun(cfg, 1), cracks: ['0,0', '1,1'] }
     const enemy = s.enemy
     s = reduceRun(cfg, s, { type: 'fight' }) // empty ship loses
     expect(s.lastBattle!.autoJump).toBe(true)
     expect(s.lives).toBe(1)
     expect(s.jumps).toBe(1)
-    expect(s.cracks).toEqual([])
+    // a jump never repairs: old cracks stay, plus this battle's new ones
+    expect(s.cracks.slice(0, 2)).toEqual(['0,0', '1,1'])
+    expect(s.cracks.length).toBe(2 + s.lastBattle!.newCracks.length)
     s = reduceRun(cfg, s, { type: 'next' })
     expect(s.phase).toBe('shop')
     expect(s.round).toBe(1)

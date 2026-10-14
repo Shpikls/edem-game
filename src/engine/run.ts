@@ -574,8 +574,8 @@ export function reduceRun(
           (lost ? ctx.config.lossBonus : 0),
         lives: state.lives - (lost && !autoJump ? 1 : 0),
         jumps: state.jumps - (autoJump ? 1 : 0),
-        // The emergency system restores the whole ship after a jump.
-        cracks: autoJump ? [] : [...state.cracks, ...newCracks],
+        // A jump saves the ship but repairs nothing: dying must never be a free repair.
+        cracks: [...state.cracks, ...newCracks],
         kitRounds: won
           ? state.kitRounds.filter((r) => r !== state.round)
           : state.kitRounds,

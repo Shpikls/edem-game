@@ -30,8 +30,8 @@ export const runConfig: RunConfig = {
     const p3 = Math.min(0.25, Math.max(0, (round - 4) * 0.045))
     return [1 - p2 - p3, p2, p3]
   },
-  damagePerCrack: 20,
-  maxCracksPerBattle: 3,
+  damagePerCrack: 30,
+  maxCracksPerBattle: 2,
   cracksFromRound: 3,
   firstShopWeapons: 2,
   repairCost: 2,
