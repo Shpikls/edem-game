@@ -19,7 +19,7 @@ import {
   type RunState,
 } from '../../engine/index.ts'
 import { Sheet } from '../sandbox/Sheet.tsx'
-import { def, describeStats, summarizeShip } from './describe.ts'
+import { def, describeStats } from './describe.ts'
 import {
   toPlacement,
   type GridModule,
@@ -375,7 +375,6 @@ export function Shipyard({ run, dispatch }: Props) {
     })
   }
 
-  const enemy = summarizeShip(run.enemy)
   const stationIn = roundsToStation(runContext, run.round)
   const dragging = drag?.moved ? drag : null
   const sellValue =
@@ -383,31 +382,14 @@ export function Shipyard({ run, dispatch }: Props) {
 
   return (
     <div className={`shipyard ${dragging ? 'is-dragging' : ''}`}>
-      <Sheet
-        num="01"
-        title={`Противник · раунд ${run.round}`}
-        className="side--enemy shipyard__enemy"
-      >
-        {run.jumped && (
-          <p className="jump-note">
-            ⚡ аварийный прыжок спас корабль: он восстановлен, прыжков осталось{' '}
-            {run.jumps}. Миссия та же — перестрой корабль и попробуй снова
-          </p>
-        )}
-        <div className="enemy-bar">
-          <p className="enemy-line">
-            корпус {run.enemy.hullHp} ·{' '}
-            {enemy.length === 0
-              ? 'без модулей'
-              : enemy.map((e) => `${def(e.defId).name} ×${e.count}`).join(', ')}
-          </p>
-          <button className="stamp" onClick={() => dispatch({ type: 'fight' })}>
-            В бой
-          </button>
-        </div>
-      </Sheet>
+      {run.jumped && (
+        <p className="jump-note">
+          ⚡ аварийный прыжок спас корабль: он восстановлен, прыжков осталось{' '}
+          {run.jumps}. Впереди другой противник того же уровня
+        </p>
+      )}
 
-      <Sheet num="02" title="Верфь" className="shipyard__yard">
+      <Sheet num="01" title="Верфь" className="shipyard__yard">
         <div className="yard">
           <div className="hull-wrap">
             <HullGrid
@@ -592,7 +574,7 @@ export function Shipyard({ run, dispatch }: Props) {
       <div className={`shipyard__side ${run.station ? '' : 'is-off-station'}`}>
         {run.station ? (
           <Sheet
-            num="03"
+            num="02"
             title={
               isStationRound(runContext, run.round)
                 ? 'Станция снабжения'
@@ -667,7 +649,7 @@ export function Shipyard({ run, dispatch }: Props) {
           </Sheet>
         ) : (
           <Sheet
-            num="03"
+            num="02"
             title="Станция снабжения"
             aside={<span className="gold">{run.gold} зол.</span>}
             className="station-off"

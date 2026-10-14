@@ -2631,3 +2631,192 @@ button:disabled:hover {
     font-size: 28px;
   }
 }
+
+/* ── HUD: run status + fight, sticky ──────────────────── */
+
+.hud {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--ink);
+  background: rgb(16 57 106 / 0.96);
+  backdrop-filter: blur(4px);
+}
+
+.hud__stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  font-size: 15px;
+  color: var(--ink-dim);
+}
+
+.hud__stats b {
+  font: 500 16px var(--font-mono);
+  color: var(--ink);
+}
+
+.hud__restart {
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.hud .hud__fight {
+  margin: 0;
+  flex: none;
+  font-size: 18px;
+  padding: 7px 18px 6px;
+}
+
+.jump-note {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #a8dcff;
+}
+
+/* ── phones: everything important on the first screen ─── */
+
+@media (max-width: 760px) {
+  .app {
+    padding: 8px 8px 30px;
+  }
+
+  .titleblock {
+    margin-bottom: 8px;
+  }
+
+  .titleblock__name {
+    font-size: 16px;
+    padding: 6px 4px 4px 10px;
+  }
+
+  .titleblock__tabs button {
+    font-size: 13px;
+    padding: 3px 8px;
+  }
+
+  .titleblock__tabs button span {
+    display: none;
+  }
+
+  .game,
+  .shipyard,
+  .shipyard__side {
+    gap: 14px;
+  }
+
+  .hud {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .hud__stats {
+    gap: 2px 10px;
+    font-size: 13px;
+  }
+
+  .hud .hud__fight {
+    font-size: 16px;
+    padding: 6px 12px 5px;
+    letter-spacing: 0.12em;
+  }
+
+  :root {
+    --cell: clamp(28px, 8.6vw, 38px);
+  }
+
+  .sheet {
+    padding: 16px 8px 8px;
+  }
+
+  .sheet__title {
+    font-size: 14px;
+  }
+
+  .yard {
+    gap: 8px;
+  }
+
+  .yard .hull-wrap {
+    padding: 0;
+  }
+
+  .rotate-zone {
+    width: 52px;
+  }
+
+  .rotate-zone__icon {
+    font-size: 24px;
+  }
+
+  /* bench: one horizontal strip */
+  .yard .bench {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-height: 0;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .bench__title {
+    width: auto;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    margin: 0;
+    font-size: 10px;
+  }
+
+  .bench__item {
+    min-height: 40px;
+    padding: 4px 8px;
+  }
+
+  .actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    min-height: 0;
+  }
+
+  .actions.is-empty {
+    display: none;
+  }
+
+  .repair-bar {
+    margin-top: 8px;
+    padding: 6px 8px;
+  }
+
+  .repair-bar .note {
+    display: none;
+  }
+
+  /* shop: three per row, compact cards */
+  .shop {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .offer {
+    padding: 5px;
+    gap: 1px;
+  }
+
+  .offer__name {
+    font-size: 14px;
+  }
+
+  .offer__stats {
+    font-size: 9.5px;
+  }
+
+  .shop__actions {
+    margin-top: 8px;
+  }
+}

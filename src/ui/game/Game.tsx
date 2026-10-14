@@ -28,34 +28,44 @@ export function Game() {
 
   return (
     <div className="game">
-      <div className="status">
-        <span>
-          раунд <b>{run.round}</b>/{config.rounds}
-        </span>
-        <span>
-          золото <b>{shown.gold}</b>
-        </span>
-        <span>
-          побед <b>{shown.wins}</b>
-        </span>
-        <span
-          className="lives"
-          title="аварийные прыжки — жизни корабля: поражение не уничтожает корабль, а уводит его в прыжок"
-        >
-          прыжки
-          {Array.from({ length: config.jumpCharges }, (_, i) => (
-            <i key={i} className={i < shown.jumps ? 'on' : ''} />
-          ))}
-        </span>
-        <button
-          className="link-button"
-          onClick={() => {
-            if (confirm('Начать новый забег? Текущий пропадёт.'))
-              setRun(newRun())
-          }}
-        >
-          новый забег
-        </button>
+      <div className="hud">
+        <div className="hud__stats">
+          <span>
+            раунд <b>{run.round}</b>/{config.rounds}
+          </span>
+          <span>
+            <b>{shown.gold}</b> зол.
+          </span>
+          <span>
+            побед <b>{shown.wins}</b>
+          </span>
+          <span
+            className="lives"
+            title="аварийные прыжки — жизни корабля: поражение не уничтожает корабль, а уводит его в прыжок"
+          >
+            {Array.from({ length: config.jumpCharges }, (_, i) => (
+              <i key={i} className={i < shown.jumps ? 'on' : ''} />
+            ))}
+          </span>
+          <button
+            className="link-button hud__restart"
+            title="новый забег"
+            onClick={() => {
+              if (confirm('Начать новый забег? Текущий пропадёт.'))
+                setRun(newRun())
+            }}
+          >
+            ⟲
+          </button>
+        </div>
+        {run.phase === 'shop' && (
+          <button
+            className="stamp hud__fight"
+            onClick={() => dispatch({ type: 'fight' })}
+          >
+            В бой
+          </button>
+        )}
       </div>
 
       {run.phase === 'shop' && <Shipyard run={run} dispatch={dispatch} />}
