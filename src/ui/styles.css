@@ -3976,3 +3976,17 @@ button:disabled:hover {
     align-self: stretch;
   }
 }
+
+/* Phones: pin the app to the visible area (in-app browsers report 100dvh
+   larger than what's actually visible) and let the ship grow on tall screens. */
+@media (max-width: 760px) {
+  .app {
+    position: fixed;
+    inset: 0;
+    height: auto;
+  }
+
+  :root {
+    --cell: clamp(16px, min(8.2vw, calc((100svh - 330px) / 10.4)), 40px);
+  }
+}

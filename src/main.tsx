@@ -12,3 +12,9 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+// Phones: never leave the page scrolled under a browser toolbar.
+const resetScroll = () => window.scrollTo(0, 0)
+window.addEventListener('resize', resetScroll)
+window.addEventListener('orientationchange', resetScroll)
+resetScroll()
