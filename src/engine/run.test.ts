@@ -357,6 +357,14 @@ describe("emergency jumps are the ship's lives", () => {
     expect(s.gold).toBe(cfg.config.startGold)
     expect(s.station).toBe(true)
     expect(s.shop.length).toBeGreaterThan(0)
+    // emergency stop: one free reroll, full-price selling
+    const rerolled = reduceRun(cfg, { ...s, gold: 0 }, { type: 'reroll' })
+    expect(rerolled.freeRerolls).toBe(0)
+    expect(rerolled.gold).toBe(0)
+    const owned = { ...s, bench: [{ uid: 'x1', defId: 'gun' }] }
+    expect(reduceRun(cfg, owned, { type: 'sell', uid: 'x1' }).gold).toBe(
+      s.gold + 3,
+    )
     expect(s.jumped).toBe(true)
   })
 

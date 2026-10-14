@@ -14,7 +14,7 @@ import {
   offerPrice,
   roundsToStation,
   itemStats,
-  sellPrice,
+  itemSellValue,
   type Rotation,
   type RunAction,
   type RunState,
@@ -394,16 +394,22 @@ export function Shipyard({ run, dispatch }: Props) {
     if (run.station) dispatch({ type: 'repair', cell })
   }
   const dragging = drag?.moved ? drag : null
+  const ownedItem = ownedUid
+    ? (run.bench.find((b) => b.uid === ownedUid) ??
+      run.placed.find((p) => p.uid === ownedUid))
+    : undefined
   const sellValue =
-    dragging && ownedUid ? sellPrice(def(dragging.defId).price) : 0
+    dragging && ownedItem ? itemSellValue(runContext, run, ownedItem) : 0
+  const freeReroll = run.freeRerolls > 0
 
   return (
     <div className={`shipyard ${dragging ? 'is-dragging' : ''}`}>
       {run.jumped && (
         <p className="jump-note">
           ⚡ аварийный прыжок: корабль как до боя, прыжков осталось {run.jumps}.
-          Аварийная стоянка — перестрой корабль и попробуй снова против другого
-          врага того же уровня
+          Аварийная стоянка: модули продаются по полной цене, одно обновление
+          магазина бесплатно — перестрой корабль против другого врага того же
+          уровня
         </p>
       )}
 
@@ -541,9 +547,7 @@ export function Shipyard({ run, dispatch }: Props) {
                   setSelected(null)
                 }}
               >
-                продать +
-                {sellPrice(def(selectedItem.defId).price) *
-                  (selectedItem.tier ?? 1)}
+                продать +{itemSellValue(runContext, run, selectedItem)}
               </button>
               <button className="link-button" onClick={() => setSelected(null)}>
                 ✕
@@ -664,11 +668,11 @@ export function Shipyard({ run, dispatch }: Props) {
                 <span className="gold">{run.gold} зол.</span>
                 <button
                   className="shop__reroll-mini"
-                  disabled={run.gold < config.rerollCost}
+                  disabled={!freeReroll && run.gold < config.rerollCost}
                   onClick={() => dispatch({ type: 'reroll' })}
                   title={`обновить · ${config.rerollCost} зол.`}
                 >
-                  ⟳ {config.rerollCost}
+                  ⟳ {freeReroll ? 'бесплатно' : config.rerollCost}
                 </button>
               </span>
             }
@@ -725,10 +729,11 @@ export function Shipyard({ run, dispatch }: Props) {
               </div>
               <div className="add-row shop__actions">
                 <button
-                  disabled={run.gold < config.rerollCost}
+                  disabled={!freeReroll && run.gold < config.rerollCost}
                   onClick={() => dispatch({ type: 'reroll' })}
                 >
-                  обновить · {config.rerollCost} зол.
+                  обновить ·{' '}
+                  {freeReroll ? 'бесплатно' : `${config.rerollCost} зол.`}
                 </button>
               </div>
               {ownedUid && dragging && (

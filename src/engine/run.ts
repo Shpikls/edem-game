@@ -129,6 +129,8 @@ export interface RunState {
   jumps: number
   /** Back from an emergency jump (cleared when the next round starts). */
   jumped: boolean
+  /** Free shop rerolls (granted by the emergency stop). */
+  freeRerolls: number
 }
 
 export type RunAction =
@@ -149,6 +151,17 @@ export type RunAction =
   | { type: 'searchWreck' }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
+
+/** What selling an item returns: half price, or full price at an emergency stop. */
+export function itemSellValue(
+  ctx: RunContext,
+  state: Pick<RunState, 'jumped'>,
+  item: { defId: string; tier?: Tier },
+): number {
+  return state.jumped
+    ? offerPrice(ctx, item.defId, item.tier ?? 1)
+    : sellPrice(entry(ctx, item.defId).price) * (item.tier ?? 1)
+}
 
 const entry = (ctx: RunContext, defId: string): CatalogEntry => {
   const e = ctx.catalog.find((c) => c.id === defId)
@@ -358,6 +371,7 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     station: true,
     jumps: ctx.config.jumpCharges,
     jumped: false,
+    freeRerolls: 0,
   }
   return startRound(ctx, base, 1)
 }
@@ -395,6 +409,8 @@ export function reduceRun(
         ...state,
         phase: 'shop',
         jumped: true,
+        // Emergency stop = a rebuild at no loss: full-price selling and a free reroll.
+        freeRerolls: 1,
         station: true,
         shop: shop.shop,
         shopTiers: shop.shopTiers,
@@ -406,7 +422,12 @@ export function reduceRun(
     if (over) return { ...state, phase: 'over' }
     return startRound(
       ctx,
-      { ...state, gold: state.gold + ctx.config.income, jumped: false },
+      {
+        ...state,
+        gold: state.gold + ctx.config.income,
+        jumped: false,
+        freeRerolls: 0,
+      },
       state.round + 1,
     )
   }
@@ -434,11 +455,13 @@ export function reduceRun(
         : bought
     }
     case 'reroll': {
-      if (state.gold < ctx.config.rerollCost) return state
+      const free = state.freeRerolls > 0
+      if (!free && state.gold < ctx.config.rerollCost) return state
       const shop = rollShop(ctx, state.rngState, state.round)
       return {
         ...state,
-        gold: state.gold - ctx.config.rerollCost,
+        gold: state.gold - (free ? 0 : ctx.config.rerollCost),
+        freeRerolls: Math.max(0, state.freeRerolls - 1),
         shop: shop.shop,
         shopTiers: shop.shopTiers,
         rngState: shop.rngState,
@@ -485,9 +508,7 @@ export function reduceRun(
       if (!item) return state
       return {
         ...state,
-        gold:
-          state.gold +
-          sellPrice(entry(ctx, item.defId).price) * (item.tier ?? 1),
+        gold: state.gold + itemSellValue(ctx, state, item),
         bench: state.bench.filter((i) => i.uid !== action.uid),
         placed: state.placed.filter((p) => p.uid !== action.uid),
       }
