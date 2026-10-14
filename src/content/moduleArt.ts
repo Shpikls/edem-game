@@ -77,6 +77,36 @@ export const moduleArt: Record<ModuleId, Art> = {
       },
     ],
   },
+  machinegun: {
+    w: 100,
+    h: 100,
+    prims: [
+      { t: 'rect', x: 12, y: 30, w: 34, h: 40, r: 4 },
+      { t: 'path', d: 'M46 42 H86 M46 58 H86' },
+      { t: 'path', d: 'M46 50 H90', thin: true },
+      { t: 'path', d: 'M20 70 L14 88 M34 70 L40 88', thin: true },
+      { t: 'circle', cx: 29, cy: 50, r: 6, solid: true },
+      { t: 'path', d: 'M90 34 L96 28 M92 50 H98 M90 66 L96 72', thin: true },
+    ],
+  },
+  rocket: {
+    // L-shaped footprint: cells (0,0) (1,0) (0,1) — art stays inside them.
+    w: 200,
+    h: 200,
+    prims: [
+      { t: 'rect', x: 14, y: 22, w: 172, h: 26, r: 13 },
+      { t: 'rect', x: 14, y: 54, w: 172, h: 26, r: 13 },
+      {
+        t: 'path',
+        d: 'M150 22 L186 35 L150 48 M150 54 L186 67 L150 80',
+        thin: true,
+      },
+      { t: 'path', d: 'M40 22 V48 M40 54 V80', thin: true },
+      { t: 'rect', x: 24, y: 86, w: 54, h: 98, r: 4 },
+      { t: 'path', d: 'M24 120 H78 M24 150 H78', thin: true },
+      { t: 'circle', cx: 51, cy: 170, r: 6, solid: true },
+    ],
+  },
   armor: {
     w: 100,
     h: 200,

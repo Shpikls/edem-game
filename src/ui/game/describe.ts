@@ -6,7 +6,7 @@ export const def = (defId: string) => modules[defId as ModuleId]
 export function describeStats(stats: ModuleStats): string {
   switch (stats.kind) {
     case 'weapon':
-      return `${stats.damage} ${stats.damageType === 'energy' ? 'энерг.' : 'кинет.'} / ${(stats.cooldownMs / 1000).toFixed(1)} с`
+      return `${stats.damage} ${{ energy: 'энерг.', kinetic: 'кинет.', explosive: 'взрыв' }[stats.damageType]} / ${(stats.cooldownMs / 1000).toFixed(1)} с`
     case 'shield':
       return `щит ${stats.capacity}, +${stats.regenAmount} / ${(stats.regenIntervalMs / 1000).toFixed(1)} с`
     case 'armor':

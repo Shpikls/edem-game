@@ -44,6 +44,12 @@ export interface RunConfig {
 
 export type Tier = 1 | 2 | 3
 
+export interface Salvage {
+  round: number
+  /** Module types the defeated enemy had on board — the find is one of them. */
+  pool: string[]
+}
+
 export interface RunContext {
   catalog: readonly CatalogEntry[]
   hull: Shape
@@ -72,7 +78,8 @@ export interface Battle {
   fielded: { uid: string; id: string }[]
   /** Cells cracked by this battle (keys 'x,y'). */
   newCracks: string[]
-  crateWon: boolean
+  /** Won → the enemy wreck can be searched. */
+  salvageWon: boolean
 }
 
 export interface RunState {
@@ -92,8 +99,8 @@ export interface RunState {
   nextUid: number
   /** Cracked hull cells ('x,y'): nothing can be placed there, modules on them don't fight. */
   cracks: string[]
-  /** Unopened loot crates: the round each one was earned in (sets tier odds). */
-  crates: number[]
+  /** Unsearched enemy wrecks: round (sets tier odds) and what that enemy carried. */
+  salvage: Salvage[]
   /** Supply station this round: shop, repair and selling are available. */
   station: boolean
 }
@@ -113,7 +120,7 @@ export type RunAction =
   | { type: 'next' }
   | { type: 'repair'; cell: string }
   | { type: 'repairAll' }
-  | { type: 'openCrate' }
+  | { type: 'searchWreck' }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
 
@@ -276,7 +283,7 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     lastBattle: null,
     nextUid: 1,
     cracks: [],
-    crates: [],
+    salvage: [],
     station: true,
   }
   return startRound(ctx, base, 1)
@@ -439,13 +446,21 @@ export function reduceRun(
           result,
           fielded,
           newCracks,
-          crateWon: won,
+          salvageWon: won,
         },
         wins: state.wins + (won ? 1 : 0),
         gold: state.gold + (won ? ctx.config.winBonus : 0),
         lives: state.lives - (lost ? 1 : 0),
         cracks: [...state.cracks, ...newCracks],
-        crates: won ? [...state.crates, state.round] : state.crates,
+        salvage: won
+          ? [
+              ...state.salvage,
+              {
+                round: state.round,
+                pool: state.enemy.modules.map((m) => m.id.split('#')[0]!),
+              },
+            ]
+          : state.salvage,
       }
     }
     case 'repair': {
@@ -469,18 +484,21 @@ export function reduceRun(
         cracks: state.cracks.slice(n),
       }
     }
-    case 'openCrate': {
-      const earnedIn = state.crates[0]
-      if (earnedIn === undefined) return state
+    case 'searchWreck': {
+      const wreck = state.salvage[0]
+      if (!wreck) return state
       const rng = createRng(state.rngState)
-      const defId = rng.pick(ctx.catalog).id
+      const pool = wreck.pool.filter((id) =>
+        ctx.catalog.some((c) => c.id === id),
+      )
+      const defId = pool.length > 0 ? rng.pick(pool) : rng.pick(ctx.catalog).id
       const roll = rng.next()
-      const [p1, p2] = ctx.config.crateOdds(earnedIn)
+      const [p1, p2] = ctx.config.crateOdds(wreck.round)
       const tier: Tier = roll < p1 ? 1 : roll < p1 + p2 ? 2 : 3
       return {
         ...state,
         rngState: rng.state,
-        crates: state.crates.slice(1),
+        salvage: state.salvage.slice(1),
         bench: [...state.bench, { uid: `i${state.nextUid}`, defId, tier }],
         nextUid: state.nextUid + 1,
       }

@@ -59,6 +59,34 @@ export const modules = {
     shape: parseShape(['#', '#']),
     stats: { kind: 'armor', armor: 3 },
   },
+  machinegun: {
+    id: 'machinegun',
+    code: 'ПМ',
+    name: 'Пулемёт',
+    price: 2,
+    shape: parseShape(['#']),
+    // Many small kinetic hits: shreds bare hulls, armor nearly cancels it.
+    stats: {
+      kind: 'weapon',
+      damage: 2,
+      damageType: 'kinetic',
+      cooldownMs: 400,
+    },
+  },
+  rocket: {
+    id: 'rocket',
+    code: 'РК',
+    name: 'Ракетница',
+    price: 4,
+    shape: parseShape(['##', '#.']),
+    // Flies under shields; armor counts double against it.
+    stats: {
+      kind: 'weapon',
+      damage: 20,
+      damageType: 'explosive',
+      cooldownMs: 4_000,
+    },
+  },
 } satisfies Record<string, ModuleDef>
 
 export type ModuleId = keyof typeof modules

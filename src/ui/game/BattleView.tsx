@@ -18,7 +18,8 @@ interface Props {
   onNext: () => void
 }
 
-const TAIL_MS = 1_600
+/** Time after the last hit for the destruction animation. */
+const TAIL_MS = 1_900
 
 interface SideView {
   hull: number
@@ -126,6 +127,8 @@ export function BattleView({ run, battle, onNext }: Props) {
   }, [t])
 
   const done = t >= result.durationMs
+  // "Next" waits for the wreck animation to play out.
+  const finished = t >= result.durationMs + TAIL_MS - 100
   const view = stateAt(battle, t)
   const log = result.events
     .filter((e) => e.t <= t && e.type !== 'shieldRegen')
@@ -169,7 +172,7 @@ export function BattleView({ run, battle, onNext }: Props) {
             {battle.newCracks.length > 0
               ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')} — ремонт на верфи`
               : 'корпус цел'}
-            {battle.crateWon && ' · +1 контейнер'}
+            {battle.salvageWon && ' · обломки врага можно обыскать'}
           </p>
         )}
         <div className="controls__row battle__controls">
@@ -182,10 +185,16 @@ export function BattleView({ run, battle, onNext }: Props) {
               x{s}
             </button>
           ))}
-          {!done && (
-            <button onClick={() => setT(result.durationMs)}>пропустить</button>
+          {!finished && (
+            <button
+              onClick={() =>
+                setT(done ? result.durationMs + TAIL_MS : result.durationMs)
+              }
+            >
+              пропустить
+            </button>
           )}
-          {done && (
+          {finished && (
             <button className="stamp" onClick={onNext}>
               {run.lives <= 0 || run.round >= runContext.config.rounds
                 ? 'Итоги'

@@ -25,6 +25,11 @@ const rail = (id: string, damage = 10, cooldownMs = 1_000): ShipModule => ({
   stats: { kind: 'weapon', damage, damageType: 'kinetic', cooldownMs },
 })
 
+const rocket = (id: string, damage = 20, cooldownMs = 1_000): ShipModule => ({
+  id,
+  stats: { kind: 'weapon', damage, damageType: 'explosive', cooldownMs },
+})
+
 const shield = (
   id: string,
   capacity: number,
@@ -238,6 +243,30 @@ describe('simulate', () => {
         4,
         0,
         3,
+      ],
+      [
+        'explosive vs shield: ignores it',
+        rocket('w'),
+        [shield('s', 50)],
+        0,
+        0,
+        20,
+      ],
+      [
+        'explosive vs armor: counts double',
+        rocket('w'),
+        [plating('a', 3)],
+        0,
+        6,
+        14,
+      ],
+      [
+        'explosive vs heavy armor: min 1',
+        rocket('w'),
+        [plating('a', 30)],
+        0,
+        19,
+        1,
       ],
     ] as const)(
       '%s',

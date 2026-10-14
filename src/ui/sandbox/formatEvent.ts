@@ -2,7 +2,11 @@ import type { BattleEvent, Side } from '../../engine/index.ts'
 
 export const sideName: Record<Side, string> = { player: 'Игрок', enemy: 'Враг' }
 
-const damageTypeName = { energy: 'энерг.', kinetic: 'кинет.' } as const
+const damageTypeName = {
+  energy: 'энерг.',
+  kinetic: 'кинет.',
+  explosive: 'взрыв.',
+} as const
 
 export const formatTime = (ms: number) => `${(ms / 1000).toFixed(1)} с`
 

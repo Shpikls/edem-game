@@ -121,20 +121,30 @@ function applyHit(
   damageType: DamageType,
   rules: BattleRules,
 ): { absorbed: number; blocked: number; hullDamage: number } {
+  // energy → shield first; kinetic → part bypasses the shield; explosive → ignores it.
   const bypass =
-    damageType === 'kinetic'
-      ? Math.floor(damage * rules.kineticShieldBypass)
-      : 0
+    damageType === 'explosive'
+      ? damage
+      : damageType === 'kinetic'
+        ? Math.floor(damage * rules.kineticShieldBypass)
+        : 0
   const toShield = damage - bypass
   const absorbed = Math.min(target.shieldHp, toShield)
   target.shieldHp -= absorbed
 
+  // Armor stops kinetic hits; against explosions it counts double. Energy ignores it.
   const toHull = damage - absorbed
+  const armor =
+    damageType === 'kinetic'
+      ? target.armor
+      : damageType === 'explosive'
+        ? target.armor * 2
+        : 0
   let hullDamage = toHull
-  if (damageType === 'kinetic' && toHull > 0) {
+  if (armor > 0 && toHull > 0) {
     hullDamage = Math.max(
       Math.min(toHull, rules.armorMinDamage),
-      toHull - target.armor,
+      toHull - armor,
     )
   }
   target.hullHp = Math.max(0, target.hullHp - hullDamage)

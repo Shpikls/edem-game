@@ -33,10 +33,22 @@ const RED = 0xff8a66
 
 const LASER_MS = 160
 const SLUG_FLIGHT_MS = 260
+const TRACER_FLIGHT_MS = 140
+const ROCKET_FLIGHT_MS = 650
+
+/** Projectile flight time by weapon (engine ids are 'defId#n'). */
+const flightMs = (source: string, damageType: string) =>
+  damageType === 'energy'
+    ? 0
+    : damageType === 'explosive'
+      ? ROCKET_FLIGHT_MS
+      : source.startsWith('machinegun#')
+        ? TRACER_FLIGHT_MS
+        : SLUG_FLIGHT_MS
 const HIT_FX_MS = 420
 const SHAKE_MS = 180
 const FLOAT_MS = 900
-const EXPLOSION_MS = 1400
+const EXPLOSION_MS = 1800
 
 interface ShipView {
   side: Side
@@ -192,7 +204,8 @@ export class BattleScene {
         const color = e.side === 'enemy' ? AMBER : INK
 
         // muzzle flash on the firing module
-        const fireT = e.damageType === 'energy' ? e.t : e.t - SLUG_FLIGHT_MS
+        const flight = flightMs(e.source, e.damageType)
+        const fireT = e.t - flight
         if (t >= fireT && t - fireT < 140) {
           for (const c of from.moduleRects.get(e.source) ?? []) {
             fx.rect(
@@ -216,17 +229,71 @@ export class BattleScene {
             fx.moveTo(src.x, src.y).lineTo(impact.x, impact.y)
             fx.stroke({ width: 1.2, color: 0xffffff, alpha: a })
           }
-        } else {
-          const p = (t - (e.t - SLUG_FLIGHT_MS)) / SLUG_FLIGHT_MS
+        } else if (e.damageType === 'explosive') {
+          // rocket: arcs on a quadratic curve, leaves a smoke trail
+          const p = (t - fireT) / flight
+          const bend = (noise(i + 3) > 0.5 ? 1 : -1) * (40 + noise(i) * 50)
+          const cx = (src.x + impact.x) / 2
+          const cy = (src.y + impact.y) / 2 + bend
+          const at = (q: number) => ({
+            x: (1 - q) ** 2 * src.x + 2 * (1 - q) * q * cx + q * q * impact.x,
+            y: (1 - q) ** 2 * src.y + 2 * (1 - q) * q * cy + q * q * impact.y,
+          })
+          if (p >= 0 && p < 1.25) {
+            for (let k = 1; k <= 9; k++) {
+              const q = p - k * 0.05
+              if (q < 0 || q > 1) continue
+              const pt = at(q)
+              const fade = 1 - k / 10
+              fx.circle(pt.x, pt.y, 2 + k * 0.7).fill({
+                color: INK,
+                alpha: 0.18 * fade * Math.max(0, 1.25 - p),
+              })
+            }
+          }
           if (p >= 0 && p < 1) {
+            const head = at(p)
+            const ahead = at(Math.min(1, p + 0.02))
+            const ang = Math.atan2(ahead.y - head.y, ahead.x - head.x)
+            fx.moveTo(head.x - Math.cos(ang) * 8, head.y - Math.sin(ang) * 8)
+              .lineTo(head.x + Math.cos(ang) * 4, head.y + Math.sin(ang) * 4)
+              .stroke({ width: 4, color: 0xffffff })
+            fx.circle(
+              head.x - Math.cos(ang) * 10,
+              head.y - Math.sin(ang) * 10,
+              3,
+            ).fill({ color: RED, alpha: 0.9 })
+          }
+          const boom = t - e.t
+          if (boom >= 0 && boom < 500) {
+            const a = 1 - boom / 500
+            fx.circle(impact.x, impact.y, 6 + boom * 0.07).stroke({
+              width: 3,
+              color: RED,
+              alpha: a,
+            })
+            fx.circle(impact.x, impact.y, 3 + boom * 0.03).fill({
+              color: 0xffffff,
+              alpha: a * 0.7,
+            })
+          }
+        } else {
+          const p = (t - fireT) / flight
+          if (p >= 0 && p < 1) {
+            const tail = flight < SLUG_FLIGHT_MS ? 0.3 : 0.18
             const x = src.x + (impact.x - src.x) * p
             const y = src.y + (impact.y - src.y) * p
-            const tx = src.x + (impact.x - src.x) * Math.max(0, p - 0.18)
-            const ty = src.y + (impact.y - src.y) * Math.max(0, p - 0.18)
+            const tx = src.x + (impact.x - src.x) * Math.max(0, p - tail)
+            const ty = src.y + (impact.y - src.y) * Math.max(0, p - tail)
             fx.moveTo(tx, ty)
               .lineTo(x, y)
-              .stroke({ width: 2, color, alpha: 0.5 })
-            fx.rect(x - 3, y - 3, 6, 6).fill({ color: 0xffffff })
+              .stroke({
+                width: flight < SLUG_FLIGHT_MS ? 1.2 : 2,
+                color,
+                alpha: 0.6,
+              })
+            if (flight >= SLUG_FLIGHT_MS)
+              fx.rect(x - 3, y - 3, 6, 6).fill({ color: 0xffffff })
           }
         }
 
@@ -343,33 +410,88 @@ export class BattleScene {
         t >= durationMs &&
         (winner === 'draw' ? true : winner !== side) &&
         lastHull(events, side) <= 0
-      ship.root.alpha = dead ? Math.max(0.25, 1 - (t - durationMs) / 600) : 1
+      const age = t - durationMs
+      // The intact ship vanishes after the first flash; fragments take over.
+      ship.root.alpha = dead ? (age < 120 ? 1 : 0) : 1
       const s = shake[side]
       ship.root.pivot.set(
         s ? (noise(t) - 0.5) * s * 2 : 0,
         s ? (noise(t + 3) - 0.5) * s * 2 : 0,
       )
-      if (dead) {
-        const age = t - durationMs
-        if (age < EXPLOSION_MS) {
-          const a = 1 - age / EXPLOSION_MS
-          for (let k = 0; k < 28; k++) {
-            const ang =
-              noise(k * 5 + (side === 'enemy' ? 100 : 0)) * Math.PI * 2
-            const speed = 0.05 + noise(k * 9) * 0.18
-            const r = age * speed
-            const x = ship.center.x + Math.cos(ang) * r
-            const y = ship.center.y + Math.sin(ang) * r
-            fx.moveTo(x, y).lineTo(x + Math.cos(ang) * 5, y + Math.sin(ang) * 5)
-          }
-          fx.stroke({ width: 2, color: RED, alpha: a })
-          fx.circle(ship.center.x, ship.center.y, 10 + age * 0.12).stroke({
-            width: 2,
-            color: INK,
-            alpha: a * 0.8,
-          })
-        }
+      if (dead && age < EXPLOSION_MS) this.drawWreck(side, age)
+    }
+  }
+
+  /** Hull breaks into cell-sized fragments that drift apart, spin and fade, with secondary blasts. */
+  private drawWreck(side: Side, age: number) {
+    const fx = this.fx
+    const ship = this.ships![side]
+    const data = this.shipsData[side]
+    const color = side === 'enemy' ? AMBER : INK
+    const T = EXPLOSION_MS
+    const k = age / T
+    const fade = 1 - k
+    const seed = side === 'enemy' ? 500 : 0
+    const moduleCells = new Set<string>()
+    for (const m of data.modules)
+      for (const c of placedCells(m)) moduleCells.add(`${c.x},${c.y}`)
+
+    // initial flash
+    if (age < 260) {
+      fx.circle(ship.center.x, ship.center.y, ship.radius.x * (0.6 + age / 260))
+      fx.fill({ color: 0xffffff, alpha: 0.35 * (1 - age / 260) })
+    }
+
+    data.hull.forEach((c, i) => {
+      const lx = ship.mirror ? ship.width - 1 - c.x : c.x
+      const ox = ship.root.x + lx * ship.cell + ship.cell / 2
+      const oy = ship.root.y + c.y * ship.cell + ship.cell / 2
+      const dx = ox - ship.center.x + (noise(seed + i) - 0.5) * ship.cell
+      const dy = oy - ship.center.y + (noise(seed + i + 50) - 0.5) * ship.cell
+      const len = Math.hypot(dx, dy) || 1
+      const speed = 0.04 + noise(seed + i * 3) * 0.08
+      const dist = speed * age * (1 - k / 2) // decelerating drift
+      const x = ox + (dx / len) * dist
+      const y = oy + (dy / len) * dist
+      const rot = (noise(seed + i * 7) - 0.5) * k * 4
+      const h = ship.cell * 0.44
+      const pts = [
+        [-h, -h],
+        [h, -h],
+        [h, h],
+        [-h, h],
+      ].map(([px, py]) => [
+        x + px! * Math.cos(rot) - py! * Math.sin(rot),
+        y + px! * Math.sin(rot) + py! * Math.cos(rot),
+      ])
+      const flat = pts.flat()
+      if (moduleCells.has(`${c.x},${c.y}`)) {
+        fx.poly(flat).fill({ color, alpha: 0.22 * fade })
       }
+      fx.poly(flat).stroke({ width: 1.5, color, alpha: fade })
+    })
+
+    // secondary blasts over the wreck
+    for (let b = 0; b < 4; b++) {
+      const at = b * 260 + noise(seed + b) * 120
+      const ba = age - at
+      if (ba < 0 || ba > 520) continue
+      const c = data.hull[Math.floor(noise(seed + b * 11) * data.hull.length)]!
+      const lx = ship.mirror ? ship.width - 1 - c.x : c.x
+      const x = ship.root.x + lx * ship.cell + ship.cell / 2
+      const y = ship.root.y + c.y * ship.cell + ship.cell / 2
+      const a = 1 - ba / 520
+      fx.circle(x, y, 4 + ba * 0.09).stroke({ width: 3, color: RED, alpha: a })
+      fx.circle(x, y, 2 + ba * 0.04).fill({ color: 0xffffff, alpha: a * 0.6 })
+      for (let j = 0; j < 6; j++) {
+        const ang = noise(seed + b * 17 + j) * Math.PI * 2
+        const r = ba * (0.06 + noise(j + b) * 0.08)
+        fx.moveTo(
+          x + Math.cos(ang) * r * 0.5,
+          y + Math.sin(ang) * r * 0.5,
+        ).lineTo(x + Math.cos(ang) * r, y + Math.sin(ang) * r)
+      }
+      fx.stroke({ width: 1.5, color: RED, alpha: a })
     }
   }
 

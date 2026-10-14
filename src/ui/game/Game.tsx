@@ -9,13 +9,13 @@ import {
 import { Sheet } from '../sandbox/Sheet.tsx'
 import { usePersistentState } from '../usePersistentState.ts'
 import { BattleView } from './BattleView.tsx'
-import { CrateOpening } from './CrateOpening.tsx'
+import { SalvageScreen } from './SalvageScreen.tsx'
 import { Shipyard } from './Shipyard.tsx'
 
 const newRun = () => createRun(runContext, Math.floor(Math.random() * 2 ** 31))
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v4', newRun())
+  const [run, setRun] = usePersistentState<RunState>('game.run.v5', newRun())
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
   const dispatch = (action: RunAction) =>
@@ -52,11 +52,11 @@ export function Game() {
       </div>
 
       {run.phase === 'shop' && <Shipyard run={run} dispatch={dispatch} />}
-      {run.phase === 'shop' && (run.crates.length > 0 || cratePending) && (
-        <CrateOpening
+      {run.phase === 'shop' && (run.salvage.length > 0 || cratePending) && (
+        <SalvageScreen
           run={run}
           dispatch={dispatch}
-          onOpen={() => setCratePending(true)}
+          onSearch={() => setCratePending(true)}
           onDone={() => setCratePending(false)}
         />
       )}

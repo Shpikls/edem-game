@@ -2287,3 +2287,101 @@ button:disabled:hover {
 .crate-reveal .stamp {
   margin: 8px 0 0;
 }
+
+/* ── salvage: enemy wreck ─────────────────────────────── */
+
+.wreck {
+  position: relative;
+  z-index: 1;
+  width: min(80vw, 340px);
+  height: auto;
+  overflow: visible;
+}
+
+.wreck__frag rect {
+  fill: rgb(255 210 122 / 0.08);
+  stroke: var(--pencil-amber);
+  stroke-width: 2;
+}
+
+.wreck__frag rect,
+.wreck__frag path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: drift 4s ease-in-out infinite;
+  animation-delay: inherit;
+}
+
+.wreck__crack {
+  fill: none;
+  stroke: var(--pencil-red);
+  stroke-width: 1.5;
+}
+
+@keyframes drift {
+  50% {
+    transform: translate(2px, -3px) rotate(4deg);
+  }
+}
+
+.wreck__scan {
+  fill: transparent;
+}
+
+.salvage--scanning .wreck__scan {
+  fill: var(--crate-light);
+  filter: drop-shadow(0 0 8px var(--crate-light));
+  animation: scan 1s ease-in-out 2 alternate;
+}
+
+@keyframes scan {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(300px);
+  }
+}
+
+.salvage--scanning .wreck__frag rect {
+  animation:
+    drift 4s ease-in-out infinite,
+    flicker 0.25s steps(2) infinite;
+}
+
+@keyframes flicker {
+  50% {
+    stroke-opacity: 0.4;
+  }
+}
+
+.salvage--scanning .wreck__frag--find rect {
+  animation: found 2s ease-in forwards;
+}
+
+@keyframes found {
+  0%,
+  45% {
+    fill: rgb(255 210 122 / 0.08);
+  }
+  100% {
+    fill: var(--crate-light);
+    stroke: #fff;
+    filter: drop-shadow(0 0 12px var(--crate-light));
+    transform: scale(1.4);
+  }
+}
+
+.salvage__onboard {
+  margin: -10px 0 0;
+  color: var(--pencil-amber);
+  text-align: center;
+  max-width: 320px;
+}
+
+.crate-screen__head-inline {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}

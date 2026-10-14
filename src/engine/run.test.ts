@@ -192,9 +192,15 @@ describe('cracks, repair, crates', () => {
   })
 
   test('crates turn into modules; higher tiers scale stats', () => {
-    let s = { ...createRun(ctx, 5), crates: Array<number>(30).fill(5) }
-    for (let i = 0; i < 30; i++) s = reduceRun(ctx, s, { type: 'openCrate' })
-    expect(s.crates).toEqual([])
+    let s = {
+      ...createRun(ctx, 5),
+      salvage: Array.from({ length: 30 }, () => ({
+        round: 5,
+        pool: [] as string[],
+      })),
+    }
+    for (let i = 0; i < 30; i++) s = reduceRun(ctx, s, { type: 'searchWreck' })
+    expect(s.salvage).toEqual([])
     expect(s.bench).toHaveLength(30)
     const tiers = new Set(s.bench.map((b) => b.tier ?? 1))
     expect(tiers.size).toBeGreaterThan(1)
@@ -239,8 +245,11 @@ test('first shop always offers weapons; early crates have no stars', () => {
     const s = createRun(strict, seed)
     expect(s.shop.filter((id) => id === 'gun').length).toBeGreaterThanOrEqual(2)
   }
-  let s = { ...createRun(strict, 1), crates: [1, 2, 3, 8] }
-  for (let i = 0; i < 4; i++) s = reduceRun(strict, s, { type: 'openCrate' })
+  let s = {
+    ...createRun(strict, 1),
+    salvage: [1, 2, 3, 8].map((round) => ({ round, pool: [] as string[] })),
+  }
+  for (let i = 0; i < 4; i++) s = reduceRun(strict, s, { type: 'searchWreck' })
   expect(s.bench.map((b) => b.tier ?? 1)).toEqual([1, 1, 1, 3])
 })
 
@@ -252,4 +261,32 @@ test('cracks per battle are capped', () => {
   }
   const s = reduceRun(capped, createRun(capped, 1), { type: 'fight' })
   expect(s.cracks.length).toBeLessThanOrEqual(2)
+})
+
+test('searching a wreck finds one of the modules that enemy carried', () => {
+  let s = {
+    ...createRun(ctx, 1),
+    salvage: Array.from({ length: 20 }, () => ({ round: 1, pool: ['plate'] })),
+  }
+  for (let i = 0; i < 20; i++) s = reduceRun(ctx, s, { type: 'searchWreck' })
+  expect(new Set(s.bench.map((b) => b.defId))).toEqual(new Set(['plate']))
+})
+
+test('a win records the enemy loadout as salvage', () => {
+  const gunsOnly = { ...ctx, catalog: ctx.catalog.slice(0, 1) }
+  let s = createRun(gunsOnly, 2)
+  s = reduceRun(gunsOnly, s, {
+    type: 'buy',
+    slot: 0,
+    place: { x: 0, y: 0, rotation: 0 },
+  })
+  s = reduceRun(gunsOnly, s, {
+    type: 'buy',
+    slot: 1,
+    place: { x: 0, y: 1, rotation: 0 },
+  })
+  s = reduceRun(gunsOnly, s, { type: 'fight' })
+  if (s.lastBattle!.result.winner === 'player') {
+    expect(s.salvage).toEqual([{ round: 1, pool: ['gun'] }])
+  }
 })

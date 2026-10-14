@@ -80,6 +80,7 @@ export function ShipEditor({ num, title, side, ship, onChange }: Props) {
                   }
                 >
                   <option value="energy">энергия</option>
+                  <option value="explosive">взрыв</option>
                   <option value="kinetic">кинетика</option>
                 </select>
               </Spec>

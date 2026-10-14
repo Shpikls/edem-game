@@ -1,6 +1,6 @@
 export type Side = 'player' | 'enemy'
 
-export type DamageType = 'energy' | 'kinetic'
+export type DamageType = 'energy' | 'kinetic' | 'explosive'
 
 export interface WeaponStats {
   kind: 'weapon'
@@ -17,7 +17,7 @@ export interface ShieldStats {
   regenIntervalMs: number
 }
 
-/** Armor modules stack: total armor is subtracted from every kinetic hit that reaches the hull. */
+/** Armor modules stack: total armor is subtracted from every kinetic hit (twice from explosive) that reaches the hull. */
 export interface ArmorStats {
   kind: 'armor'
   armor: number
