@@ -9,6 +9,7 @@ import {
   type Side,
 } from '../../engine/index.ts'
 import { Sheet } from '../sandbox/Sheet.tsx'
+import { BattleEnd } from './BattleEnd.tsx'
 import { formatEvent } from '../sandbox/formatEvent.ts'
 import { def, engineLabel, shieldMax } from './describe.ts'
 
@@ -280,45 +281,43 @@ export function BattleView({ run, battle, onNext }: Props) {
       </Sheet>
 
       {finished && (
-        <div
-          className={`battle-end battle-end--${
+        <BattleEnd
+          kind={
             result.winner === 'player'
               ? 'win'
               : battle.autoJump
                 ? 'jump'
                 : 'lost'
-          }`}
-        >
-          <div className="battle-end__card">
-            <div className="battle-end__title">
-              {result.winner === 'player'
-                ? 'Победа'
-                : battle.autoJump
-                  ? 'Аварийный прыжок'
-                  : 'Корабль уничтожен'}
-            </div>
-            <p className="battle-end__line">
-              {result.winner === 'player'
-                ? `+${runContext.config.winBonus} зол. · обломки врага можно обыскать`
-                : battle.autoJump
-                  ? `+${runContext.config.lossBonus} зол. · корабль восстановлен · прыжков осталось: ${run.jumps}`
-                  : 'аварийных прыжков не осталось'}
-            </p>
-            {result.winner === 'player' && (
-              <p className="battle-end__line battle-end__line--dim">
-                {battle.newCracks.length > 0
-                  ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')}`
-                  : 'корпус цел'}
-              </p>
-            )}
-            <button className="stamp battle-end__next" onClick={onNext}>
-              {!battle.autoJump &&
-              (run.lives <= 0 || run.round >= runContext.config.rounds)
-                ? 'Итоги'
-                : 'Дальше'}
-            </button>
-          </div>
-        </div>
+          }
+          title={
+            result.winner === 'player'
+              ? 'Победа'
+              : battle.autoJump
+                ? 'Аварийный прыжок'
+                : 'Корабль уничтожен'
+          }
+          line={
+            result.winner === 'player'
+              ? `+${runContext.config.winBonus} зол. · обломки врага можно обыскать`
+              : battle.autoJump
+                ? `+${runContext.config.lossBonus} зол. · корабль восстановлен · прыжков: ${run.jumps}`
+                : 'аварийных прыжков не осталось'
+          }
+          sub={
+            result.winner === 'player'
+              ? battle.newCracks.length > 0
+                ? `корпус: +${battle.newCracks.length} ${plural(battle.newCracks.length, 'трещина', 'трещины', 'трещин')}`
+                : 'корпус цел'
+              : undefined
+          }
+          next={
+            !battle.autoJump &&
+            (run.lives <= 0 || run.round >= runContext.config.rounds)
+              ? 'Итоги'
+              : 'Дальше'
+          }
+          onNext={onNext}
+        />
       )}
 
       <Sheet num="02" title="Журнал">
