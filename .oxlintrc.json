@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["src/engine/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "react", "message": "engine must stay framework-free" },
+              {
+                "name": "react-dom",
+                "message": "engine must stay framework-free"
+              },
+              {
+                "name": "pixi.js",
+                "message": "engine must stay framework-free"
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "**/ui",
+                  "**/ui/**",
+                  "**/battle",
+                  "**/battle/**",
+                  "react/*",
+                  "react-dom/*",
+                  "@pixi/*",
+                  "pixi.js/*"
+                ],
+                "message": "engine must not depend on ui/battle or rendering libs"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
