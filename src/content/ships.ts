@@ -32,7 +32,7 @@ export interface Silhouette {
 }
 
 /** Fighter-style warship around the hold: delta wings, twin tail, nose canopy. */
-export function silhouette(gw: number, gh: number): Silhouette {
+function fighter(gw: number, gh: number): Silhouette {
   const c = gh / 2
   // mirror a point across the horizontal centre line (bottom half = top half)
   const m = ([x, y]: Pt): Pt => [x, gh - y]
@@ -108,4 +108,31 @@ export interface SandboxShipPreset {
 export const sandboxPresets: Record<'player' | 'enemy', SandboxShipPreset> = {
   player: { hullHp: 100, modules: ['laser', 'laser', 'shield'] },
   enemy: { hullHp: 100, modules: ['railgun', 'armor'] },
+}
+
+/** How tightly the fighter hugs the hold (1 = original drawing). */
+const SHIP_SCALE = 0.86
+
+/** The fighter, shrunk around the hold's centre so the hold fills more of it. */
+export function silhouette(gw: number, gh: number): Silhouette {
+  const base = fighter(gw, gh)
+  const cx = gw / 2
+  const cy = gh / 2
+  const k = SHIP_SCALE
+  const pt = ([x, y]: Pt): Pt => [cx + (x - cx) * k, cy + (y - cy) * k]
+  return {
+    pad: {
+      left: (base.pad.left + cx) * k - cx,
+      right: (base.pad.right + cx) * k - cx,
+      top: (base.pad.top + cy) * k - cy,
+      bottom: (base.pad.bottom + cy) * k - cy,
+    },
+    hull: base.hull.map(pt),
+    fins: base.fins.map((f) => f.map(pt)),
+    engines: base.engines.map((e) => {
+      const [x, y] = pt([e.x, e.y])
+      return { x, y, w: e.w * k, h: e.h * k }
+    }),
+    lines: base.lines.map((l) => l.map(pt)),
+  }
 }

@@ -4064,3 +4064,14 @@ button:disabled:hover {
     font-size: 13px;
   }
 }
+
+/* Phones: the ship (hold + fighter) is ~9.5 × 8.7 cells — size cells to fill the yard. */
+@media (max-width: 760px) {
+  :root {
+    --cell: clamp(
+      16px,
+      min(calc((100vw - 64px) / 9.6), calc((100svh - 420px) / 8.8)),
+      44px
+    );
+  }
+}
