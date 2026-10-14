@@ -103,8 +103,8 @@ export function Shipyard({ run, dispatch }: Props) {
   const [selected, setSelected] = useState<Selection>(null)
   const [benchRot, setBenchRot] = useState<Record<string, Rotation>>({})
   const [errorUid, setErrorUid] = useState<string | null>(null)
-  // Repair: tap-to-fix mode (paid or with a kit) and a two-step auto repair.
-  const [repairMode, setRepairMode] = useState<'gold' | 'kit' | null>(null)
+  // Repair: tap-to-fix mode and a two-step auto repair.
+  const [repairMode, setRepairMode] = useState<'gold' | null>(null)
   const [autoArmed, setAutoArmed] = useState(false)
   const [autoHover, setAutoHover] = useState(false)
   // Phones: the repair panel floats over the yard and opens from the 🔧 button.
@@ -391,12 +391,7 @@ export function Shipyard({ run, dispatch }: Props) {
   const showPreview = autoArmed || autoHover
   const inRepair = repairMode !== null && run.cracks.length > 0
   const onCrack = (cell: string) => {
-    if (repairMode === 'kit') {
-      dispatch({ type: 'useKit', cell })
-      setRepairMode(null)
-    } else if (repairMode === 'gold' || run.station) {
-      dispatch({ type: 'repair', cell })
-    }
+    if (run.station) dispatch({ type: 'repair', cell })
   }
   const dragging = drag?.moved ? drag : null
   const sellValue =
@@ -457,18 +452,6 @@ export function Shipyard({ run, dispatch }: Props) {
             data-drop="bench"
           >
             <div className="bench__title">склад · {run.bench.length}</div>
-            {run.kits > 0 && (
-              <button
-                className={`bench__kit ${repairMode === 'kit' ? 'is-selected' : ''}`}
-                title="ремкомплект: заделать одну трещину бесплатно, в любой момент"
-                onClick={() =>
-                  run.cracks.length > 0 &&
-                  setRepairMode(repairMode === 'kit' ? null : 'kit')
-                }
-              >
-                🔧 ×{run.kits}
-              </button>
-            )}
             {run.bench.map((item) => {
               const isSel =
                 selected?.kind === 'bench' && selected.uid === item.uid
@@ -597,9 +580,7 @@ export function Shipyard({ run, dispatch }: Props) {
             {inRepair ? (
               <>
                 <span className="repair-bar__hint">
-                  {repairMode === 'kit'
-                    ? 'тапни по трещине — ремкомплект её заделает'
-                    : `тапни по трещине — ${config.repairCost} зол. за клетку`}
+                  тапни по трещине — {config.repairCost} зол. за клетку
                 </span>
                 <button onClick={() => setRepairMode(null)}>готово</button>
               </>
@@ -644,15 +625,7 @@ export function Shipyard({ run, dispatch }: Props) {
                     )}
                   </>
                 )}
-                {run.kits > 0 && (
-                  <button
-                    className="kit-button"
-                    onClick={() => setRepairMode('kit')}
-                  >
-                    🔧 ремкомплект ×{run.kits}
-                  </button>
-                )}
-                {!run.station && run.kits === 0 && (
+                {!run.station && (
                   <span className="note">
                     ремонт — на станции снабжения{' '}
                     {stationIn === 1 ? 'через 1 бой' : `через ${stationIn} боя`}

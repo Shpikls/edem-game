@@ -3051,32 +3051,6 @@ button:disabled:hover {
   color: var(--paper-deep);
 }
 
-.kit-button,
-.bench__kit {
-  border-color: #06d6a0 !important;
-  color: #06d6a0 !important;
-}
-
-.bench__kit {
-  flex: none;
-  min-height: 40px;
-  padding: 4px 10px;
-  font: 500 14px var(--font-mono);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.bench__kit.is-selected {
-  background: rgb(6 214 160 / 0.2);
-}
-
-.salvage__kit {
-  color: #06d6a0;
-  font-size: 16px;
-  border: 1px solid #06d6a0;
-  padding: 4px 12px;
-}
-
 /* in repair mode modules are not draggable: let taps reach the cracks */
 .ship-frame:has(.cell--repairable) .hull-art {
   opacity: 0.55;

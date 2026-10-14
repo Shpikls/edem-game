@@ -200,9 +200,6 @@ export function SalvageScreen({
             <div className="note">
               {describeStats(itemStats(runContext, item))}
             </div>
-            {wreck?.kit && (
-              <div className="salvage__kit">+ 🔧 ремкомплект — на складе</div>
-            )}
           </div>
         )
       )}

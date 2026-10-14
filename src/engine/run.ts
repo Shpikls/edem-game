@@ -50,8 +50,6 @@ export interface RunConfig {
   /** Minimum weapons offered in the very first shop. */
   firstShopWeapons: number
   repairCost: number
-  /** Repair kits per run: [min, max] count, dropped by wrecks of rounds in [from, to]. */
-  repairKits: { min: number; max: number; from: number; to: number }
   /** A supply station (shop, repair, selling) opens every N rounds, starting with round 1… */
   stationEvery: number
   /** …and every round from this one on. */
@@ -68,8 +66,6 @@ export interface Salvage {
   round: number
   /** Module types the defeated enemy had on board — the find is one of them. */
   pool: string[]
-  /** This wreck also holds a repair kit. */
-  kit?: boolean
 }
 
 export interface RunContext {
@@ -133,10 +129,6 @@ export interface RunState {
   station: boolean
   /** Emergency jumps left. */
   jumps: number
-  /** Repair kits in the hold: each fixes one crack for free, at any time. */
-  kits: number
-  /** Rounds whose won wreck will drop a kit (planned at run start). */
-  kitRounds: number[]
   /** Back from an emergency jump (cleared when the next round starts). */
   jumped: boolean
 }
@@ -157,8 +149,6 @@ export type RunAction =
   | { type: 'repair'; cell: string }
   | { type: 'repairAll' }
   | { type: 'searchWreck' }
-  /** Fix one crack with a repair kit (works outside stations too). */
-  | { type: 'useKit'; cell: string }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
 
@@ -370,18 +360,7 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     station: true,
     jumps: ctx.config.jumpCharges,
     jumped: false,
-    kits: 0,
-    kitRounds: [],
   }
-  // Plan the repair kit drops for this run.
-  const rng = createRng(base.rngState)
-  const { min, max, from, to } = ctx.config.repairKits
-  const rounds = Array.from({ length: to - from + 1 }, (_, i) => from + i)
-  base.kitRounds = rng
-    .shuffle(rounds)
-    .slice(0, rng.int(min, Math.min(max, rounds.length)))
-    .sort((a, b) => a - b)
-  base.rngState = rng.state
   return startRound(ctx, base, 1)
 }
 
@@ -576,16 +555,12 @@ export function reduceRun(
         jumps: state.jumps - (autoJump ? 1 : 0),
         // A jump saves the ship but repairs nothing: dying must never be a free repair.
         cracks: [...state.cracks, ...newCracks],
-        kitRounds: won
-          ? state.kitRounds.filter((r) => r !== state.round)
-          : state.kitRounds,
         salvage: won
           ? [
               ...state.salvage,
               {
                 round: state.round,
                 pool: state.enemy.modules.map((m) => m.id.split('#')[0]!),
-                ...(state.kitRounds.includes(state.round) ? { kit: true } : {}),
               },
             ]
           : state.salvage,
@@ -613,14 +588,6 @@ export function reduceRun(
         cracks: order.slice(n),
       }
     }
-    case 'useKit': {
-      if (state.kits <= 0 || !state.cracks.includes(action.cell)) return state
-      return {
-        ...state,
-        kits: state.kits - 1,
-        cracks: state.cracks.filter((k) => k !== action.cell),
-      }
-    }
     case 'searchWreck': {
       const wreck = state.salvage[0]
       if (!wreck) return state
@@ -634,7 +601,6 @@ export function reduceRun(
         ...state,
         rngState: rng.state,
         salvage: state.salvage.slice(1),
-        kits: state.kits + (wreck.kit ? 1 : 0),
         bench: [...state.bench, { uid: `i${state.nextUid}`, defId, tier }],
         nextUid: state.nextUid + 1,
       }
