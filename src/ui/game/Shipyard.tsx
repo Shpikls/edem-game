@@ -107,6 +107,8 @@ export function Shipyard({ run, dispatch }: Props) {
   const [repairMode, setRepairMode] = useState<'gold' | 'kit' | null>(null)
   const [autoArmed, setAutoArmed] = useState(false)
   const [autoHover, setAutoHover] = useState(false)
+  // Phones: the repair panel floats over the yard and opens from the 🔧 button.
+  const [repairOpen, setRepairOpen] = useState(false)
   const label = labels(run)
   const { config, hull: fullHull } = runContext
   const cracks = new Set(run.cracks)
@@ -431,6 +433,14 @@ export function Shipyard({ run, dispatch }: Props) {
               onModulePointerDown={onHullPointerDown}
             />
           </div>
+          {run.cracks.length > 0 && (
+            <button
+              className={`repair-toggle ${repairOpen ? 'is-active' : ''}`}
+              onClick={() => setRepairOpen((o) => !o)}
+            >
+              🔧 {run.cracks.length}
+            </button>
+          )}
           <div
             className={`rotate-zone ${dragging ? 'is-live' : ''} ${
               dragging?.over?.type === 'rotate' ? 'is-over' : ''
@@ -565,7 +575,21 @@ export function Shipyard({ run, dispatch }: Props) {
           )}
         </div>
         {run.cracks.length > 0 && (
-          <div className={`repair-bar ${inRepair ? 'is-active' : ''}`}>
+          <div
+            className={`repair-bar ${inRepair ? 'is-active' : ''} ${
+              repairOpen || inRepair || autoArmed ? 'is-open' : ''
+            }`}
+          >
+            <button
+              className="link-button repair-bar__close"
+              onClick={() => {
+                setRepairOpen(false)
+                setRepairMode(null)
+                setAutoArmed(false)
+              }}
+            >
+              ✕
+            </button>
             <span className="redline">
               трещин: {run.cracks.length}
               {disabled.size > 0 && ` · не работает модулей: ${disabled.size}`}
@@ -661,7 +685,19 @@ export function Shipyard({ run, dispatch }: Props) {
                 ? 'Станция снабжения'
                 : 'Аварийная стоянка'
             }
-            aside={<span className="gold">{run.gold} зол.</span>}
+            aside={
+              <span className="shop-aside">
+                <span className="gold">{run.gold} зол.</span>
+                <button
+                  className="shop__reroll-mini"
+                  disabled={run.gold < config.rerollCost}
+                  onClick={() => dispatch({ type: 'reroll' })}
+                  title={`обновить · ${config.rerollCost} зол.`}
+                >
+                  ⟳ {config.rerollCost}
+                </button>
+              </span>
+            }
             className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
           >
             <div data-drop="sell">

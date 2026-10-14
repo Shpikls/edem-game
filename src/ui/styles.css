@@ -3680,3 +3680,269 @@ button:disabled:hover {
   background: #10396a;
   pointer-events: none;
 }
+
+/* ── desktop: phone-only controls hidden ──────────────── */
+
+.repair-toggle,
+.repair-bar__close,
+.shop__reroll-mini {
+  display: none;
+}
+
+.shop-aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── phones: the whole shipyard fits one screen, no page scroll ── */
+
+@media (max-width: 760px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  .app {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 6px 4px;
+    overflow: hidden;
+  }
+
+  .game {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hud {
+    flex: none;
+  }
+
+  /* hull cell size follows the screen height too */
+  :root {
+    --cell: clamp(16px, min(6.4vw, calc((100dvh - 330px) / 10.4)), 34px);
+  }
+
+  .shipyard {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .shipyard__yard {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 6px 6px;
+  }
+
+  .yard {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: static;
+  }
+
+  .yard .hull-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .yard .bench {
+    flex: none;
+    height: 50px;
+    max-height: none;
+  }
+
+  .bench__item {
+    min-height: 36px;
+    padding: 2px 6px;
+  }
+
+  .shipyard__yard > .note,
+  .actions.is-empty {
+    display: none;
+  }
+
+  /* selected-module actions float over the bottom of the yard */
+  .actions:not(.is-empty) {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: 60px;
+    z-index: 5;
+    margin: 0;
+    padding: 8px;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    box-shadow: 0 6px 20px rgb(6 22 46 / 0.6);
+  }
+
+  /* repair: a corner button opens a floating panel */
+  .repair-toggle {
+    display: block;
+    position: absolute;
+    top: 14px;
+    left: 8px;
+    z-index: 4;
+    padding: 6px 8px;
+    font: 500 14px var(--font-mono);
+    letter-spacing: 0;
+    border-color: var(--pencil-red);
+    color: var(--pencil-red);
+    background: rgb(16 57 106 / 0.9);
+  }
+
+  .repair-toggle.is-active {
+    background: rgb(255 138 102 / 0.2);
+  }
+
+  .repair-bar {
+    display: none;
+  }
+
+  .repair-bar.is-open {
+    display: flex;
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: 60px;
+    z-index: 6;
+    margin: 0;
+    padding: 8px 30px 8px 8px;
+    background: var(--paper);
+    border-style: solid;
+    box-shadow: 0 6px 20px rgb(6 22 46 / 0.6);
+  }
+
+  .repair-bar__close {
+    display: block;
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 16px;
+  }
+
+  .repair-bar .note {
+    display: none;
+  }
+
+  /* rotate zone: top-right corner of the yard */
+  .rotate-zone {
+    top: 14px;
+    right: 8px;
+  }
+
+  /* shop: one compact row */
+  .shipyard__side {
+    flex: none;
+    gap: 12px;
+  }
+
+  .shop-sheet {
+    padding: 12px 6px 6px;
+  }
+
+  .shop__actions {
+    display: none;
+  }
+
+  .shop__reroll-mini {
+    display: inline-block;
+    padding: 2px 8px;
+    font: 500 13px var(--font-mono);
+    letter-spacing: 0;
+  }
+
+  .shop {
+    gap: 4px;
+  }
+
+  .offer {
+    padding: 4px;
+  }
+
+  .offer__art {
+    min-height: 0;
+  }
+
+  .offer__stats {
+    display: none;
+  }
+
+  .offer__price {
+    margin-top: 2px;
+    padding-top: 2px;
+  }
+
+  .station-off {
+    padding: 12px 8px 8px;
+  }
+
+  .station-off__when {
+    font-size: 18px;
+  }
+
+  .station-off .note {
+    display: none;
+  }
+
+  /* battle fits too: the log is a desktop extra */
+  .battle-log {
+    display: none;
+  }
+
+  .battle {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .shipyard > *,
+  .shipyard__yard,
+  .yard,
+  .yard .bench,
+  .shipyard__side,
+  .shop-sheet {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .repair-bar.is-open button {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    height: auto;
+    padding: 6px 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .shipyard__side,
+  .shipyard__side > .sheet {
+    width: 100%;
+    align-self: stretch;
+  }
+}

@@ -319,7 +319,7 @@ export function BattleView({ run, battle, onNext }: Props) {
         />
       )}
 
-      <Sheet num="02" title="Журнал">
+      <Sheet num="02" title="Журнал" className="battle-log">
         <ol className="log log--live">
           {log.map((e, i) => (
             <li
