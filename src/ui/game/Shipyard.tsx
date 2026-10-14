@@ -388,6 +388,11 @@ export function Shipyard({ run, dispatch }: Props) {
         title={`Противник · раунд ${run.round}`}
         className="side--enemy shipyard__enemy"
       >
+        {run.jumped && (
+          <p className="jump-note">
+            ⚡ аварийный прыжок: жизнь сохранена, система восстановила корабль
+          </p>
+        )}
         <div className="enemy-bar">
           <p className="enemy-line">
             корпус {run.enemy.hullHp} ·{' '}

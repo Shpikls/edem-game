@@ -16,7 +16,11 @@ interface Props {
   run: RunState
   battle: Battle
   onNext: () => void
+  onJump: () => void
 }
+
+/** Same as BattleScene.JUMP_MS; kept here so Pixi stays lazy-loaded. */
+const JUMP_MS = 1_400
 
 /** Time after the last hit for the destruction animation. */
 const TAIL_MS = 1_900
@@ -79,16 +83,25 @@ function sceneShips(run: RunState, battle: Battle): Record<Side, SceneShip> {
   }
 }
 
-export function BattleView({ run, battle, onNext }: Props) {
+export function BattleView({ run, battle, onNext, onJump }: Props) {
   const { result } = battle
   const [speed, setSpeed] = useState(1)
   const [t, setT] = useState(0)
+  // Emergency jump: combat time freezes at `at`, the jump animation runs for JUMP_MS.
+  const [jump, setJump] = useState<{ at: number; start: number } | null>(null)
   const speedRef = useRef(speed)
   useEffect(() => {
     speedRef.current = speed
   }, [speed])
 
   const stageRef = useRef<HTMLDivElement>(null)
+  const jumpRef = useRef(jump)
+  const jumpDone = useRef(false)
+  const onJumpRef = useRef(onJump)
+  useEffect(() => {
+    jumpRef.current = jump
+    onJumpRef.current = onJump
+  })
   const sceneRef = useRef<BattleScene | null>(null)
   const ships = useMemo(() => sceneShips(run, battle), [run, battle])
 
@@ -115,7 +128,19 @@ export function BattleView({ run, battle, onNext }: Props) {
     const tick = (now: number) => {
       const dt = (now - last) * speedRef.current
       last = now
-      setT((prev) => Math.min(result.durationMs + TAIL_MS, prev + dt))
+      setT((prev) =>
+        jumpRef.current
+          ? jumpRef.current.at
+          : Math.min(result.durationMs + TAIL_MS, prev + dt),
+      )
+      if (jumpRef.current) {
+        const age = now - jumpRef.current.start
+        sceneRef.current?.setJump(age)
+        if (age >= JUMP_MS && !jumpDone.current) {
+          jumpDone.current = true
+          onJumpRef.current()
+        }
+      }
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -166,7 +191,9 @@ export function BattleView({ run, battle, onNext }: Props) {
             battle={battle}
           />
         </div>
-        <div className="battle__stage" ref={stageRef} />
+        <div className="battle__stage" ref={stageRef}>
+          {jump && <div className="jump-overlay">аварийный прыжок</div>}
+        </div>
         {done && (
           <p className="battle__summary">
             {battle.newCracks.length > 0
@@ -188,7 +215,15 @@ export function BattleView({ run, battle, onNext }: Props) {
               x{s}
             </button>
           ))}
-          {!finished && (
+          {!done && !jump && run.jumps > 0 && (
+            <button
+              className="jump-button"
+              onClick={() => setJump({ at: t, start: performance.now() })}
+            >
+              ⚡ аварийный прыжок · {run.jumps}
+            </button>
+          )}
+          {!finished && !jump && (
             <button
               onClick={() =>
                 setT(done ? result.durationMs + TAIL_MS : result.durationMs)

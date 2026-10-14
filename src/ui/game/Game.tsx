@@ -15,7 +15,7 @@ import { Shipyard } from './Shipyard.tsx'
 const newRun = () => createRun(runContext, Math.floor(Math.random() * 2 ** 31))
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v7', newRun())
+  const [run, setRun] = usePersistentState<RunState>('game.run.v8', newRun())
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
   const dispatch = (action: RunAction) =>
@@ -39,6 +39,9 @@ export function Game() {
         </span>
         <span>
           побед <b>{run.wins}</b>
+        </span>
+        <span title="аварийные прыжки: выйти из боя без потери жизни, корабль восстановится">
+          прыжки <b>{'⚡'.repeat(run.jumps) || '—'}</b>
         </span>
         <button
           className="link-button"
@@ -67,6 +70,7 @@ export function Game() {
           run={run}
           battle={run.lastBattle}
           onNext={() => dispatch({ type: 'next' })}
+          onJump={() => dispatch({ type: 'jump' })}
         />
       )}
 

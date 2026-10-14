@@ -49,6 +49,8 @@ const HIT_FX_MS = 420
 const SHAKE_MS = 180
 const FLOAT_MS = 900
 const EXPLOSION_MS = 1800
+export const JUMP_MS = 1400
+const JUMP_SPOOL_MS = 600
 
 interface ShipView {
   side: Side
@@ -179,6 +181,14 @@ export class BattleScene {
     this.ships = { player: make('player'), enemy: make('enemy') }
   }
 
+  /** Emergency jump animation progress in ms (null = no jump). */
+  private jumpAge: number | null = null
+
+  setJump(age: number | null) {
+    this.jumpAge = age
+    this.render(this.lastT)
+  }
+
   render(t: number) {
     this.lastT = t
     if (!this.ready || !this.ships) return
@@ -190,7 +200,9 @@ export class BattleScene {
 
     const shake: Record<Side, number> = { player: 0, enemy: 0 }
 
-    events.forEach((e, i) => {
+    // During a jump the fight is frozen: no beams, flashes or numbers, just the ships.
+    const battleEvents = this.jumpAge === null ? events : []
+    battleEvents.forEach((e, i) => {
       if (e.type === 'hit') {
         const from = this.ships![e.side]
         const to = this.ships![e.target]
@@ -419,6 +431,47 @@ export class BattleScene {
         s ? (noise(t + 3) - 0.5) * s * 2 : 0,
       )
       if (dead && age < EXPLOSION_MS) this.drawWreck(side, age)
+    }
+
+    if (this.jumpAge !== null) this.drawJump(this.jumpAge)
+  }
+
+  /** Player ship spools up, flashes and streaks off-screen to the left. */
+  private drawJump(age: number) {
+    const fx = this.fx
+    const ship = this.ships!.player
+    const W = this.app.screen.width
+    const spool = Math.min(1, age / JUMP_SPOOL_MS)
+    const fly = Math.max(0, (age - JUMP_SPOOL_MS) / (JUMP_MS - JUMP_SPOOL_MS))
+    const dist = fly * fly * (ship.center.x + ship.radius.x * 2 + W * 0.2)
+    ship.root.pivot.x = dist
+    ship.root.alpha = 1 - Math.max(0, fly - 0.6) / 0.4
+    const cx = ship.center.x - dist
+    const cy = ship.center.y
+    // charge-up rings
+    if (fly === 0) {
+      for (let k = 0; k < 3; k++) {
+        const r = ship.radius.x * (1.2 - spool * 0.5) + k * 10
+        fx.ellipse(cx, cy, r, r * 0.8).stroke({
+          width: 1.5,
+          color: INK,
+          alpha: spool * (0.7 - k * 0.2),
+        })
+      }
+    }
+    // warp streaks trailing to the right
+    for (let k = 0; k < 14; k++) {
+      const y = cy + (noise(k + 70) - 0.5) * ship.radius.y * 1.8
+      const len = (60 + noise(k + 90) * 160) * (spool + fly * 3)
+      const x0 = cx + ship.radius.x * 0.6
+      fx.moveTo(x0, y).lineTo(x0 + len, y)
+    }
+    fx.stroke({ width: 1.5, color: INK, alpha: 0.5 * spool * (1 - fly * 0.6) })
+    // flash at the moment of the jump
+    const flashAge = age - JUMP_SPOOL_MS
+    if (flashAge >= 0 && flashAge < 220) {
+      fx.circle(ship.center.x, cy, ship.radius.x * (0.5 + flashAge / 140))
+      fx.fill({ color: 0xffffff, alpha: 0.5 * (1 - flashAge / 220) })
     }
   }
 

@@ -33,6 +33,8 @@ export interface RunConfig {
   lossBonus: number
   /** After a loss the next round always has a station (repair + shop). */
   stationAfterLoss: boolean
+  /** Emergency jumps per run: leave a battle, keep the life, ship fully restored. */
+  jumpCharges: number
   /** Stat multiplier per tier: [Mk I, Mk II, Mk III]. */
   tierMultiplier: readonly [number, number, number]
   /** Tier odds [★, ★★, ★★★] for a crate earned in this round; sums to 1. */
@@ -94,6 +96,8 @@ export interface Battle {
   newCracks: string[]
   /** Won → the enemy wreck can be searched. */
   salvageWon: boolean
+  /** Run values before the fight's consequences, restored by an emergency jump. */
+  before: Pick<RunState, 'wins' | 'gold' | 'lives' | 'salvage'>
 }
 
 export interface RunState {
@@ -119,6 +123,10 @@ export interface RunState {
   salvage: Salvage[]
   /** Supply station this round: shop, repair and selling are available. */
   station: boolean
+  /** Emergency jumps left. */
+  jumps: number
+  /** The previous round ended with an emergency jump. */
+  jumped: boolean
 }
 
 export type RunAction =
@@ -137,6 +145,8 @@ export type RunAction =
   | { type: 'repair'; cell: string }
   | { type: 'repairAll' }
   | { type: 'searchWreck' }
+  /** During a battle: jump out — no life lost, no rewards, all cracks repaired. */
+  | { type: 'jump' }
 
 export const sellPrice = (price: number) => Math.max(1, Math.floor(price / 2))
 
@@ -289,9 +299,11 @@ function rollEnemy(ctx: RunContext, rngState: number, level: number) {
 }
 
 function startRound(ctx: RunContext, state: RunState, round: number): RunState {
-  const lostLast = state.lastBattle?.result.winner === 'enemy'
+  const lostLast = !state.jumped && state.lastBattle?.result.winner === 'enemy'
   const station =
-    isStationRound(ctx, round) || (ctx.config.stationAfterLoss && lostLast)
+    isStationRound(ctx, round) ||
+    state.jumped ||
+    (ctx.config.stationAfterLoss && lostLast)
   const shop = station
     ? rollShop(
         ctx,
@@ -331,6 +343,8 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     cracks: [],
     salvage: [],
     station: true,
+    jumps: ctx.config.jumpCharges,
+    jumped: false,
   }
   return startRound(ctx, base, 1)
 }
@@ -355,12 +369,30 @@ export function reduceRun(
   if (state.phase === 'over') return state
 
   if (state.phase === 'battle') {
+    if (action.type === 'jump') {
+      const battle = state.lastBattle
+      if (!battle || state.jumps <= 0) return state
+      // Undo the fight's consequences, repair everything, burn the round.
+      const restored: RunState = {
+        ...state,
+        ...battle.before,
+        cracks: [],
+        jumps: state.jumps - 1,
+      }
+      if (state.round >= ctx.config.rounds)
+        return { ...restored, phase: 'over' }
+      return startRound(
+        ctx,
+        { ...restored, gold: restored.gold + ctx.config.income, jumped: true },
+        state.round + 1,
+      )
+    }
     if (action.type !== 'next') return state
     const over = state.lives <= 0 || state.round >= ctx.config.rounds
     if (over) return { ...state, phase: 'over' }
     return startRound(
       ctx,
-      { ...state, gold: state.gold + ctx.config.income },
+      { ...state, gold: state.gold + ctx.config.income, jumped: false },
       state.round + 1,
     )
   }
@@ -495,6 +527,12 @@ export function reduceRun(
           fielded,
           newCracks,
           salvageWon: won,
+          before: {
+            wins: state.wins,
+            gold: state.gold,
+            lives: state.lives,
+            salvage: state.salvage,
+          },
         },
         wins: state.wins + (won ? 1 : 0),
         gold:
@@ -553,6 +591,7 @@ export function reduceRun(
       }
     }
     case 'next':
+    case 'jump':
       return state
   }
 }

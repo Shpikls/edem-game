@@ -22,6 +22,7 @@ export const runConfig: RunConfig = {
   // Comeback: a loss gives gold and an emergency station, and doesn't raise the enemy level.
   lossBonus: 2,
   stationAfterLoss: true,
+  jumpCharges: 2,
   tierMultiplier: [1, 1.5, 2],
   // No stars early; ★★ from round 4, ★★★ from round 5, frequent near the end.
   crateOdds: (round) => {

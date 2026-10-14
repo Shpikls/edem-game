@@ -61,6 +61,7 @@ const ctx: RunContext = {
     stationEvery: 1,
     lossBonus: 0,
     stationAfterLoss: false,
+    jumpCharges: 2,
     stationEveryRoundFrom: 100,
     shopTierOdds: () => [1, 0, 0],
     tierPriceMultiplier: [1, 1.5, 2],
@@ -352,5 +353,33 @@ describe('comeback after a loss', () => {
     expect(s.round).toBe(2)
     expect(s.station).toBe(true) // round 2 is normally not a station
     expect(s.enemy.modules.length).toBe(enemyBefore) // still level 1
+  })
+})
+
+describe('emergency jump', () => {
+  const gunsOnly = { ...ctx, catalog: ctx.catalog.slice(0, 1) }
+  const cfg = {
+    ...gunsOnly,
+    config: { ...gunsOnly.config, stationEvery: 2, lives: 5, rounds: 10 },
+  }
+
+  test('jumping out of a lost fight keeps the life, repairs all, burns the round', () => {
+    let s = { ...createRun(cfg, 1), cracks: ['0,0', '1,1'] }
+    s = reduceRun(cfg, s, { type: 'fight' }) // empty ship loses
+    expect(s.lives).toBe(4)
+    s = reduceRun(cfg, s, { type: 'jump' })
+    expect(s.phase).toBe('shop')
+    expect(s.round).toBe(2)
+    expect(s.lives).toBe(5)
+    expect(s.cracks).toEqual([])
+    expect(s.jumps).toBe(1)
+    expect(s.station).toBe(true)
+    expect(s.gold).toBe(cfg.config.startGold + cfg.config.income)
+  })
+
+  test('no jumps left → jump is ignored', () => {
+    let s = { ...createRun(cfg, 1), jumps: 0 }
+    s = reduceRun(cfg, s, { type: 'fight' })
+    expect(reduceRun(cfg, s, { type: 'jump' })).toBe(s)
   })
 })
