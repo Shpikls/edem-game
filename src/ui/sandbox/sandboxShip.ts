@@ -44,3 +44,11 @@ export function toEngineShip(ship: SandboxShip): Ship {
     modules: withEngineIds(ship).map(({ id, stats }) => ({ id, stats })),
   }
 }
+
+/** 'laser#2' → 'ЛЗ-2'. Unknown ids are returned as is. */
+export function drawingLabel(engineId: string): string {
+  const [defId, n] = engineId.split('#')
+  const def =
+    defId !== undefined && defId in modules ? modules[defId as ModuleId] : null
+  return def && n ? `${def.code}-${n}` : engineId
+}

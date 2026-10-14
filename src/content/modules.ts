@@ -3,6 +3,8 @@ import { parseShape, type ModuleStats, type Shape } from '../engine/index.ts'
 export interface ModuleDef {
   id: string
   name: string
+  /** Short drawing label, e.g. 'ЛЗ' → 'ЛЗ-1' on the hull grid. */
+  code: string
   shape: Shape
   stats: ModuleStats
 }
@@ -11,6 +13,7 @@ export interface ModuleDef {
 export const modules = {
   laser: {
     id: 'laser',
+    code: 'ЛЗ',
     name: 'Лазер',
     shape: parseShape(['##']),
     stats: {
@@ -22,6 +25,7 @@ export const modules = {
   },
   railgun: {
     id: 'railgun',
+    code: 'РС',
     name: 'Рельсотрон',
     shape: parseShape(['###']),
     stats: {
@@ -33,6 +37,7 @@ export const modules = {
   },
   shield: {
     id: 'shield',
+    code: 'ЩТ',
     name: 'Щит',
     shape: parseShape(['##', '##']),
     stats: {
@@ -44,6 +49,7 @@ export const modules = {
   },
   armor: {
     id: 'armor',
+    code: 'БР',
     name: 'Броня',
     shape: parseShape(['#', '#']),
     stats: { kind: 'armor', armor: 3 },

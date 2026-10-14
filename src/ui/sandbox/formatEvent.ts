@@ -6,7 +6,10 @@ const damageTypeName = { energy: 'энерг.', kinetic: 'кинет.' } as cons
 
 export const formatTime = (ms: number) => `${(ms / 1000).toFixed(1)} с`
 
-export function formatEvent(e: BattleEvent): string {
+export function formatEvent(
+  e: BattleEvent,
+  label: (source: string) => string = (s) => s,
+): string {
   switch (e.type) {
     case 'hit': {
       const parts = [
@@ -15,12 +18,12 @@ export function formatEvent(e: BattleEvent): string {
         `корпус −${e.hullDamage}`,
       ].filter(Boolean)
       return (
-        `${sideName[e.side]} · ${e.source} → ${e.amount} ${damageTypeName[e.damageType]}: ` +
+        `${sideName[e.side]} · ${label(e.source)} → ${e.amount} ${damageTypeName[e.damageType]}: ` +
         `${parts.join(', ')} | у цели щит ${e.shieldHp}, корпус ${e.hullHp}`
       )
     }
     case 'shieldRegen':
-      return `${sideName[e.side]} · ${e.source}: щит +${e.amount} → ${e.shieldHp}`
+      return `${sideName[e.side]} · ${label(e.source)}: щит +${e.amount} → ${e.shieldHp}`
     case 'overheat':
       return `Перегрев: ${sideName[e.target]} −${e.amount} → корпус ${e.hullHp}`
     case 'destroyed':

@@ -1,6 +1,13 @@
+import type { ReactNode } from 'react'
 import { moduleList, modules, type ModuleId } from '../../content/modules.ts'
 import type { DamageType, ModuleStats } from '../../engine/index.ts'
-import { createModule, withEngineIds, type SandboxShip } from './sandboxShip.ts'
+import {
+  createModule,
+  drawingLabel,
+  withEngineIds,
+  type SandboxShip,
+} from './sandboxShip.ts'
+import { Sheet } from './Sheet.tsx'
 
 const statLabels: Record<string, string> = {
   damage: 'урон',
@@ -11,13 +18,21 @@ const statLabels: Record<string, string> = {
   armor: 'броня',
 }
 
+const kindLabels: Record<ModuleStats['kind'], string> = {
+  weapon: 'вооружение',
+  shield: 'защита',
+  armor: 'защита',
+}
+
 interface Props {
+  num: string
   title: string
+  side: 'player' | 'enemy'
   ship: SandboxShip
   onChange: (ship: SandboxShip) => void
 }
 
-export function ShipEditor({ title, ship, onChange }: Props) {
+export function ShipEditor({ num, title, side, ship, onChange }: Props) {
   const updateStats = (uid: string, stats: ModuleStats) =>
     onChange({
       ...ship,
@@ -25,26 +40,24 @@ export function ShipEditor({ title, ship, onChange }: Props) {
     })
 
   return (
-    <section className="panel">
-      <h2>{title}</h2>
-      <label className="field">
-        <span>Корпус, HP</span>
+    <Sheet num={num} title={title} className={`side--${side}`}>
+      <Spec name="корпус, HP">
         <NumberInput
           value={ship.hullHp}
           min={1}
           onChange={(hullHp) => onChange({ ...ship, hullHp })}
         />
-      </label>
+      </Spec>
 
-      <ul className="module-list">
+      <ol className="parts">
         {withEngineIds(ship).map((m) => (
-          <li key={m.uid} className={`module module--${m.stats.kind}`}>
-            <div className="module__head">
-              <strong>{modules[m.defId].name}</strong>
-              <code>{m.id}</code>
+          <li key={m.uid} className="part">
+            <div className="part__head">
+              <span className="part__code">{drawingLabel(m.id)}</span>
+              <span className="part__name">{modules[m.defId].name}</span>
+              <span className="part__kind">{kindLabels[m.stats.kind]}</span>
               <button
-                className="icon-button"
-                title="Убрать"
+                className="link-button"
                 onClick={() =>
                   onChange({
                     ...ship,
@@ -52,50 +65,47 @@ export function ShipEditor({ title, ship, onChange }: Props) {
                   })
                 }
               >
-                ✕
+                снять
               </button>
             </div>
-            <div className="module__stats">
-              {m.stats.kind === 'weapon' && (
-                <label className="field">
-                  <span>тип</span>
-                  <select
-                    value={m.stats.damageType}
-                    onChange={(e) =>
+            {m.stats.kind === 'weapon' && (
+              <Spec name="тип урона">
+                <select
+                  value={m.stats.damageType}
+                  onChange={(e) =>
+                    updateStats(m.uid, {
+                      ...m.stats,
+                      damageType: e.target.value as DamageType,
+                    } as ModuleStats)
+                  }
+                >
+                  <option value="energy">энергия</option>
+                  <option value="kinetic">кинетика</option>
+                </select>
+              </Spec>
+            )}
+            {Object.entries(m.stats)
+              .filter(([, v]) => typeof v === 'number')
+              .map(([key, value]) => (
+                <Spec key={key} name={statLabels[key] ?? key}>
+                  <NumberInput
+                    value={value as number}
+                    min={key.endsWith('Ms') ? 1 : 0}
+                    onChange={(v) =>
                       updateStats(m.uid, {
                         ...m.stats,
-                        damageType: e.target.value as DamageType,
+                        [key]: v,
                       } as ModuleStats)
                     }
-                  >
-                    <option value="energy">энергия</option>
-                    <option value="kinetic">кинетика</option>
-                  </select>
-                </label>
-              )}
-              {Object.entries(m.stats)
-                .filter(([, v]) => typeof v === 'number')
-                .map(([key, value]) => (
-                  <label key={key} className="field">
-                    <span>{statLabels[key] ?? key}</span>
-                    <NumberInput
-                      value={value as number}
-                      min={key.endsWith('Ms') ? 1 : 0}
-                      onChange={(v) =>
-                        updateStats(m.uid, {
-                          ...m.stats,
-                          [key]: v,
-                        } as ModuleStats)
-                      }
-                    />
-                  </label>
-                ))}
-            </div>
+                  />
+                </Spec>
+              ))}
           </li>
         ))}
-      </ul>
+      </ol>
 
       <div className="add-row">
+        <span className="add-row__label">добавить:</span>
         {moduleList.map((def) => (
           <button
             key={def.id}
@@ -106,11 +116,28 @@ export function ShipEditor({ title, ship, onChange }: Props) {
               })
             }
           >
-            + {def.name}
+            {def.name}
           </button>
         ))}
       </div>
-    </section>
+    </Sheet>
+  )
+}
+
+/** "name ........ [value]" row, like a spec line on a drawing. */
+export function Spec({
+  name,
+  children,
+}: {
+  name: string
+  children: ReactNode
+}) {
+  return (
+    <label className="spec">
+      <span className="spec__name">{name}</span>
+      <span className="spec__leader" />
+      {children}
+    </label>
   )
 }
 

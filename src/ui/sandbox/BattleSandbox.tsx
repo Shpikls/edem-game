@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react'
 import { battleRules } from '../../content/battleRules.ts'
 import { sandboxPresets } from '../../content/ships.ts'
-import { simulate, type BattleResult, type Side } from '../../engine/index.ts'
+import {
+  simulate,
+  type BattleEvent,
+  type BattleResult,
+  type Side,
+} from '../../engine/index.ts'
 import { usePersistentState } from '../usePersistentState.ts'
 import {
   formatEvent,
@@ -9,8 +14,14 @@ import {
   sideName,
   summarizeBySource,
 } from './formatEvent.ts'
-import { fromPreset, toEngineShip, type SandboxShip } from './sandboxShip.ts'
-import { ShipEditor } from './ShipEditor.tsx'
+import {
+  drawingLabel,
+  fromPreset,
+  toEngineShip,
+  type SandboxShip,
+} from './sandboxShip.ts'
+import { Sheet } from './Sheet.tsx'
+import { ShipEditor, Spec } from './ShipEditor.tsx'
 
 type Ships = Record<Side, SandboxShip>
 
@@ -64,70 +75,82 @@ export function BattleSandbox() {
     <div className="sandbox">
       <div className="ships">
         <ShipEditor
+          num="01"
           title="Игрок"
+          side="player"
           ship={ships.player}
           onChange={(player) => setShips({ ...ships, player })}
         />
         <ShipEditor
+          num="02"
           title="Враг"
+          side="enemy"
           ship={ships.enemy}
           onChange={(enemy) => setShips({ ...ships, enemy })}
         />
       </div>
 
-      <section className="panel controls">
-        <label className="field">
-          <span>Seed</span>
-          <input
-            type="number"
-            value={seed}
-            onChange={(e) => setSeed(Math.trunc(Number(e.target.value)) || 0)}
-          />
-        </label>
-        <button onClick={() => setSeed(Math.floor(Math.random() * 1_000_000))}>
-          🎲
-        </button>
-        <button className="primary" onClick={fight}>
-          Бой
-        </button>
-        <button
-          onClick={() => setShips({ player: ships.enemy, enemy: ships.player })}
-        >
-          Поменять местами
-        </button>
-        <button
-          onClick={() => {
-            setShips(defaultShips())
-            setRun(null)
-          }}
-        >
-          Сброс
-        </button>
-        <span className="hint">
-          Перегрев с {formatTime(battleRules.overheatStartMs)}; seed пока ни на
-          что не влияет
-        </span>
-      </section>
+      <Sheet num="03" title="Испытание" className="controls">
+        <div className="controls__row">
+          <Spec name="seed">
+            <input
+              type="number"
+              value={seed}
+              onChange={(e) => setSeed(Math.trunc(Number(e.target.value)) || 0)}
+            />
+          </Spec>
+          <button
+            onClick={() => setSeed(Math.floor(Math.random() * 1_000_000))}
+          >
+            случайный
+          </button>
+          <button
+            onClick={() =>
+              setShips({ player: ships.enemy, enemy: ships.player })
+            }
+          >
+            поменять местами
+          </button>
+          <button
+            onClick={() => {
+              setShips(defaultShips())
+              setRun(null)
+            }}
+          >
+            сброс
+          </button>
+          <button className="stamp" onClick={fight}>
+            В бой
+          </button>
+        </div>
+        <p className="note">
+          прим.: перегрев с {formatTime(battleRules.overheatStartMs)}; seed пока
+          ни на что не влияет
+        </p>
+      </Sheet>
 
-      {run && 'error' in run && (
-        <section className="panel error">{run.error}</section>
-      )}
+      {run && 'error' in run && <p className="redline">{run.error}</p>}
 
       {result && (
         <>
-          <section className="panel result">
-            <h2>
-              {outcomeText[result.winner]} за {formatTime(result.durationMs)}
-            </h2>
-            <table>
+          <Sheet
+            num="04"
+            title="Итог"
+            aside={
+              <span className={`verdict verdict--${result.winner}`}>
+                {outcomeText[result.winner]} · {formatTime(result.durationMs)}
+              </span>
+            }
+          >
+            <table className="spec-table">
               <thead>
                 <tr>
-                  <th>Сторона</th>
-                  <th>Модуль</th>
-                  <th>Выстрелов</th>
-                  <th>Урон</th>
-                  <th>По корпусу</th>
-                  <th>Урон/с</th>
+                  <th>поз.</th>
+                  <th>сторона</th>
+                  <th className="num">выстр.</th>
+                  <th className="num">урон</th>
+                  <th className="num">по корпусу</th>
+                  <th className="num">урон/с</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,34 +159,34 @@ export function BattleSandbox() {
                     key={`${s.side}:${s.source}`}
                     className={`side--${s.side}`}
                   >
+                    <td className="code">{drawingLabel(s.source)}</td>
                     <td>{sideName[s.side]}</td>
-                    <td>
-                      <code>{s.source}</code>
-                    </td>
-                    <td>{s.shots}</td>
-                    <td>{s.damage}</td>
-                    <td>{s.hullDamage}</td>
-                    <td>
+                    <td className="num">{s.shots}</td>
+                    <td className="num">{s.damage}</td>
+                    <td className="num">{s.hullDamage}</td>
+                    <td className="num">
                       {((s.damage / result.durationMs) * 1000).toFixed(1)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </section>
+          </Sheet>
 
-          <section className="panel">
-            <div className="log-head">
-              <h2>Лог ({visibleEvents.length})</h2>
-              <label>
+          <Sheet
+            num="05"
+            title={`Журнал · ${visibleEvents.length} зап.`}
+            aside={
+              <label className="check">
                 <input
                   type="checkbox"
                   checked={showRegen}
                   onChange={(e) => setShowRegen(e.target.checked)}
-                />{' '}
-                показывать реген щита
+                />
+                реген щита
               </label>
-            </div>
+            }
+          >
             <ol className="log">
               {visibleEvents.map((e, i) => (
                 <li
@@ -171,20 +194,18 @@ export function BattleSandbox() {
                   className={`log__row log__row--${e.type} ${logSide(e)}`}
                 >
                   <span className="log__time">{formatTime(e.t)}</span>
-                  <span>{formatEvent(e)}</span>
+                  <span>{formatEvent(e, drawingLabel)}</span>
                 </li>
               ))}
             </ol>
-          </section>
+          </Sheet>
         </>
       )}
     </div>
   )
 }
 
-function logSide(e: BattleResult['events'][number]): string {
-  if (e.type === 'hit' || e.type === 'shieldRegen' || e.type === 'destroyed') {
-    return `side--${e.side}`
-  }
-  return ''
+function logSide(e: BattleEvent): string {
+  if (e.type === 'overheat') return `side--${e.target}`
+  return `side--${e.side}`
 }
