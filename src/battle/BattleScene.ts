@@ -6,7 +6,9 @@ import type {
   Shape,
   Side,
 } from '../engine/index.ts'
-import { placedCells } from '../engine/index.ts'
+import { placedCells, rotateShape } from '../engine/index.ts'
+import { artSvg, moduleArt } from '../content/moduleArt.ts'
+import type { ModuleId } from '../content/modules.ts'
 
 /**
  * Replays a battle log as an animation. Stateless with respect to time:
@@ -16,7 +18,10 @@ import { placedCells } from '../engine/index.ts'
 export interface SceneShip {
   hull: Shape
   /** Placement ids must equal engine module ids ('laser#1'). */
-  modules: readonly (Placement & { kind: 'weapon' | 'shield' | 'armor' })[]
+  modules: readonly (Placement & {
+    kind: 'weapon' | 'shield' | 'armor'
+    defId: string
+  })[]
 }
 
 const INK = 0xeaf2ff
@@ -130,7 +135,15 @@ export class BattleScene {
         moduleCenter.set(m.id, { x: root.x + mx, y: root.y + my })
       }
 
-      drawShip(body, data, cell, gw, mirror, side === 'enemy' ? AMBER : INK)
+      drawShip(
+        body,
+        root,
+        data,
+        cell,
+        gw,
+        mirror,
+        side === 'enemy' ? AMBER : INK,
+      )
       return {
         side,
         root,
@@ -393,6 +406,7 @@ function edgePoint(ship: ShipView, from: { x: number; y: number }) {
 /** Blueprint ship: hull contour, faint cell grid, module outlines with hatching. */
 function drawShip(
   g: Graphics,
+  parent: Container,
   data: SceneShip,
   cell: number,
   gw: number,
@@ -419,14 +433,12 @@ function drawShip(
   }
   g.stroke({ width: 2, color, alpha: 0.95 })
 
+  const tint = { weapon: 0xff8a66, shield: 0x78cdff, armor: color } as const
   for (const m of data.modules) {
     const cells = placedCells(m)
     const own = new Set(cells.map((c) => `${c.x},${c.y}`))
-    // fill first: fill() consumes the whole current path, so hatching must come after
     for (const c of cells) g.rect(lx(c.x) * cell, c.y * cell, cell, cell)
-    g.fill({ color, alpha: 0.1 })
-    for (const c of cells) hatch(g, lx(c.x) * cell, c.y * cell, cell, m.kind)
-    g.stroke({ width: 1, color, alpha: 0.55 })
+    g.fill({ color: tint[m.kind], alpha: m.kind === 'armor' ? 0.1 : 0.18 })
     for (const c of cells) {
       const x = lx(c.x) * cell
       const y = c.y * cell
@@ -440,31 +452,25 @@ function drawShip(
       if (right) g.moveTo(x + cell, y).lineTo(x + cell, y + cell)
     }
     g.stroke({ width: 1.5, color })
-  }
-}
 
-function hatch(
-  g: Graphics,
-  x: number,
-  y: number,
-  size: number,
-  kind: 'weapon' | 'shield' | 'armor',
-) {
-  const step = Math.max(4, size / 6)
-  if (kind === 'armor') {
-    for (let d = step / 2; d < size; d += step / 1.5)
-      g.moveTo(x, y + d).lineTo(x + size, y + d)
-    return
-  }
-  for (let d = step; d < size * 2; d += step) {
-    // 45° lines clipped to the square
-    const x0 = x + Math.max(0, d - size)
-    const y0 = y + Math.min(d, size)
-    const x1 = x + Math.min(d, size)
-    const y1 = y + Math.max(0, d - size)
-    g.moveTo(x0, y0).lineTo(x1, y1)
-    if (kind === 'shield') {
-      g.moveTo(x + size - (x0 - x), y0).lineTo(x + size - (x1 - x), y1)
-    }
+    // Line-art icon, rotated with the module; mirrored ships flip it (see F·R(r) = R(−r)·F).
+    const art = moduleArt[m.defId as ModuleId]
+    if (!art) continue
+    const icon = new Graphics().svg(
+      artSvg(m.defId as ModuleId, color === INK ? '#eaf2ff' : '#ffd27a'),
+    )
+    const rotated = rotateShape(m.shape, m.rotation)
+    const bw = Math.max(...rotated.map((c) => c.x)) + 1
+    const bh = Math.max(...rotated.map((c) => c.y)) + 1
+    const s = cell / 100
+    icon.pivot.set(art.w / 2, art.h / 2)
+    icon.rotation = ((mirror ? -m.rotation : m.rotation) * Math.PI) / 2
+    icon.scale.set(mirror ? -s : s, s)
+    const centerX = (m.x + bw / 2) * cell
+    icon.position.set(
+      mirror ? gw * cell - centerX : centerX,
+      (m.y + bh / 2) * cell,
+    )
+    parent.addChild(icon)
   }
 }

@@ -54,15 +54,17 @@ function sceneShips(run: RunState, battle: Battle): Record<Side, SceneShip> {
       y: p.y,
       rotation: p.rotation,
       kind: def(p.defId).stats.kind,
+      defId: p.defId,
     }
   })
   const enemyItems = battle.enemy.modules.map((m) => ({
     id: m.id,
     shape: def(m.id.split('#')[0]!).shape,
     kind: m.stats.kind,
+    defId: m.id.split('#')[0]!,
   }))
   const enemy = autoPlace(runContext.hull, enemyItems).flatMap((p, i) =>
-    p ? [{ ...p, kind: enemyItems[i]!.kind }] : [],
+    p ? [{ ...p, kind: enemyItems[i]!.kind, defId: enemyItems[i]!.defId }] : [],
   )
   return {
     player: { hull: runContext.hull, modules: player },

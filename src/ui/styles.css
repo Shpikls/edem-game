@@ -1450,3 +1450,231 @@ button:disabled:hover {
     min-height: 90px;
   }
 }
+
+/* ── module art, selection, rotation ──────────────────── */
+
+:root {
+  --tint-weapon: rgb(255 138 102 / 0.2);
+  --tint-shield: rgb(120 205 255 / 0.2);
+  --tint-armor: rgb(234 242 255 / 0.12);
+}
+
+.module-art {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  color: var(--ink);
+}
+
+.module-art__svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+}
+
+.module-art__svg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hull-grid {
+  position: relative;
+}
+
+/* icons replace hatching on the hull */
+.cell--filled.cell--weapon,
+.cell--filled.cell--shield,
+.cell--filled.cell--armor {
+  background-image: none;
+}
+
+.cell--filled.cell--weapon {
+  background-color: var(--tint-weapon);
+}
+.cell--filled.cell--shield {
+  background-color: var(--tint-shield);
+}
+.cell--filled.cell--armor {
+  background-color: var(--tint-armor);
+}
+
+.cell--selected {
+  background-color: rgb(234 242 255 / 0.3) !important;
+}
+
+.cell--error {
+  background-color: rgb(255 138 102 / 0.55) !important;
+}
+
+.hull-art {
+  position: absolute;
+  pointer-events: none;
+}
+
+.hull-art.is-error {
+  animation: shake 0.35s;
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+.hull-art__label {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font: 500 9.5px var(--font-mono);
+  color: var(--ink-dim);
+}
+
+.hull-art--preview {
+  opacity: 0.75;
+}
+
+.hull-art--preview.is-bad {
+  color: var(--pencil-red);
+}
+
+.hull-art--preview.is-bad .module-art {
+  color: var(--pencil-red);
+}
+
+.rotate-badge {
+  position: absolute;
+  right: -12px;
+  top: -12px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: auto;
+  background: var(--ink);
+  color: var(--paper-deep);
+  border: 2px solid var(--paper-deep);
+  z-index: 2;
+}
+
+.rotate-badge:hover {
+  background: #fff;
+}
+
+.bench__item.is-selected {
+  border-color: var(--ink);
+  background: rgb(234 242 255 / 0.18);
+}
+
+.bench__item.is-error {
+  border-color: var(--pencil-red);
+  animation: shake 0.35s;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ink-faint);
+  min-height: 58px;
+}
+
+.actions__what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-right: auto;
+  font-size: 16px;
+}
+
+.actions__what b {
+  font: 500 13px var(--font-mono);
+  border: 1px solid var(--ink);
+  padding: 1px 5px;
+}
+
+.actions__what .note {
+  margin: 0;
+}
+
+.actions__rotate {
+  background: var(--ink);
+  color: var(--paper-deep);
+  font-size: 16px;
+  padding: 9px 16px 8px;
+}
+
+.actions__rotate:hover {
+  background: #fff;
+}
+
+.actions.is-empty .note {
+  margin: 0;
+}
+
+.offer__art {
+  grid-area: shape;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+
+.offer--weapon .offer__art {
+  color: var(--pencil-red);
+}
+
+.offer--weapon .offer__art .module-art,
+.bench__item .module-art--laser,
+.bench__item .module-art--railgun {
+  color: #ffb39c;
+}
+
+.offer--shield .offer__art .module-art,
+.bench__item .module-art--shield {
+  color: #a8dcff;
+}
+
+.drag-ghost .module-art {
+  background: rgb(234 242 255 / 0.12);
+  outline: 1px dashed var(--ink);
+}
+
+.hull-wrap {
+  overflow: clip;
+  overflow-clip-margin: 14px;
+}
+
+@media (max-width: 760px) {
+  .offer__art {
+    min-height: 0;
+  }
+
+  .actions__what {
+    width: 100%;
+  }
+
+  .actions button {
+    flex: 1;
+  }
+
+  .actions .link-button {
+    flex: 0;
+  }
+}
+
+.hull-art__label {
+  display: none;
+}

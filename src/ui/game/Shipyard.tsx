@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -8,9 +9,6 @@ import {
 import { runContext } from '../../content/run.ts'
 import {
   autoPlace,
-  placedCells,
-  renderCells,
-  rotateShape,
   sellPrice,
   type Rotation,
   type RunAction,
@@ -19,12 +17,13 @@ import {
 import { Sheet } from '../sandbox/Sheet.tsx'
 import { def, describeStats, summarizeShip } from './describe.ts'
 import {
-  previewFits,
   toPlacement,
   type GridModule,
   type GridPreview,
 } from './gridHelpers.ts'
 import { HullGrid } from './HullGrid.tsx'
+import { ModuleArt } from './ModuleArt.tsx'
+import { nextRotation, resolveDrop, rotateInPlace } from './rotation.ts'
 
 interface Props {
   run: RunState
@@ -55,8 +54,9 @@ interface Drag {
   cellPx: number
 }
 
+type Selection = { kind: 'hull' | 'bench'; uid: string } | null
+
 const DRAG_THRESHOLD = 6
-const nextRotation = (r: Rotation) => ((r + 1) % 4) as Rotation
 
 /** 'ЛЗ-1', 'ЛЗ-2' … numbered per type across bench + hull, in purchase order. */
 function labels(run: RunState): Map<string, string> {
@@ -88,6 +88,9 @@ function hitTest(x: number, y: number): Over {
 export function Shipyard({ run, dispatch }: Props) {
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
+  const [selected, setSelected] = useState<Selection>(null)
+  const [benchRot, setBenchRot] = useState<Record<string, Rotation>>({})
+  const [errorUid, setErrorUid] = useState<string | null>(null)
   const label = labels(run)
   const { config, hull } = runContext
 
@@ -96,69 +99,116 @@ export function Shipyard({ run, dispatch }: Props) {
     setDrag(next)
   }, [])
 
+  const flashError = (uid: string) => {
+    setErrorUid(uid)
+    window.setTimeout(() => setErrorUid((u) => (u === uid ? null : u)), 450)
+  }
+
   const gridItems: GridModule[] = run.placed.map((p) => ({
     ...p,
     label: label.get(p.uid) ?? '',
   }))
+  const placementsExcept = (uid: string | null) =>
+    run.placed.filter((p) => p.uid !== uid).map((p) => toPlacement(p))
+
+  // Drop out a stale selection (sold / moved by another action).
+  const selectedItem =
+    selected?.kind === 'hull'
+      ? run.placed.find((p) => p.uid === selected.uid)
+      : selected?.kind === 'bench'
+        ? run.bench.find((b) => b.uid === selected.uid)
+        : undefined
 
   const ownedUid = drag && drag.source.kind !== 'shop' ? drag.source.uid : null
-  const anchorOf = (d: Drag, over: { x: number; y: number }) => ({
-    x: over.x - d.grab.x,
-    y: over.y - d.grab.y,
-  })
+
+  const resolve = (d: Drag, over: { x: number; y: number }) =>
+    resolveDrop(
+      hull,
+      placementsExcept(ownedUid),
+      ownedUid ?? '__new__',
+      def(d.defId).shape,
+      d.rotation,
+      d.grab,
+      over,
+    )
+
   const preview: GridPreview | null =
     drag?.moved && drag.over?.type === 'cell'
-      ? {
-          uid: ownedUid,
-          defId: drag.defId,
-          rotation: drag.rotation,
-          ...anchorOf(drag, drag.over),
-        }
+      ? (() => {
+          const { placement } = resolve(drag, drag.over)
+          return {
+            uid: ownedUid,
+            defId: drag.defId,
+            x: placement.x,
+            y: placement.y,
+            rotation: placement.rotation,
+          }
+        })()
       : null
+
+  const rotateSelected = () => {
+    if (!selected || !selectedItem) return
+    if (selected.kind === 'bench') {
+      setBenchRot((m) => ({
+        ...m,
+        [selected.uid]: nextRotation(m[selected.uid] ?? 0),
+      }))
+      return
+    }
+    const item = run.placed.find((p) => p.uid === selected.uid)
+    if (!item) return
+    const next = rotateInPlace(
+      hull,
+      placementsExcept(item.uid),
+      toPlacement(item),
+    )
+    if (next) {
+      dispatch({
+        type: 'place',
+        uid: item.uid,
+        x: next.x,
+        y: next.y,
+        rotation: next.rotation,
+      })
+    } else {
+      flashError(item.uid)
+    }
+  }
+
+  const autoPlaceBench = (uid: string) => {
+    const item = run.bench.find((b) => b.uid === uid)
+    if (!item) return
+    const existing = run.placed.map((p) => toPlacement(p))
+    const spot = autoPlace(hull, [
+      ...existing,
+      { id: item.uid, shape: def(item.defId).shape },
+    ])
+    const placed = spot.at(-1)
+    if (spot.slice(0, -1).every((p) => p !== null) && placed) {
+      dispatch({
+        type: 'place',
+        uid: item.uid,
+        x: placed.x,
+        y: placed.y,
+        rotation: placed.rotation,
+      })
+      setSelected(null)
+    } else {
+      flashError(uid)
+    }
+  }
 
   const tap = (d: Drag) => {
     const s = d.source
     if (s.kind === 'shop') {
       dispatch({ type: 'buy', slot: s.slot })
-    } else if (s.kind === 'hull') {
-      // Tap on a placed module: rotate in place, if any rotation fits.
-      const item = run.placed.find((p) => p.uid === s.uid)
-      if (!item) return
-      let r = item.rotation
-      for (let i = 0; i < 3; i++) {
-        r = nextRotation(r)
-        const candidate = {
-          uid: item.uid,
-          defId: item.defId,
-          x: item.x,
-          y: item.y,
-          rotation: r,
-        }
-        if (previewFits(hull, gridItems, candidate)) {
-          dispatch({ type: 'place', ...candidate })
-          return
-        }
-      }
-    } else {
-      // Tap on a bench item: put it in the first free spot.
-      const item = run.bench.find((b) => b.uid === s.uid)
-      if (!item) return
-      const existing = run.placed.map((p) => toPlacement(p))
-      const spot = autoPlace(hull, [
-        ...existing,
-        { id: item.uid, shape: def(item.defId).shape },
-      ])
-      const placed = spot.at(-1)
-      if (spot.slice(0, -1).every((p) => p !== null) && placed) {
-        dispatch({
-          type: 'place',
-          uid: item.uid,
-          x: placed.x,
-          y: placed.y,
-          rotation: placed.rotation,
-        })
-      }
+      return
     }
+    setSelected((cur) =>
+      cur?.uid === s.uid && cur.kind === s.kind
+        ? null
+        : { kind: s.kind, uid: s.uid },
+    )
   }
 
   const drop = (d: Drag) => {
@@ -166,16 +216,59 @@ export function Shipyard({ run, dispatch }: Props) {
     const over = d.over
     if (!over) return
     if (over.type === 'cell') {
-      const at = { ...anchorOf(d, over), rotation: d.rotation }
+      const { placement, ok } = resolve(d, over)
+      if (!ok) return
+      const at = {
+        x: placement.x,
+        y: placement.y,
+        rotation: placement.rotation,
+      }
       if (s.kind === 'shop') dispatch({ type: 'buy', slot: s.slot, place: at })
       else dispatch({ type: 'place', uid: s.uid, ...at })
+      setSelected(null)
     } else if (over.type === 'bench') {
       if (s.kind === 'shop') dispatch({ type: 'buy', slot: s.slot })
-      else if (s.kind === 'hull') dispatch({ type: 'unplace', uid: s.uid })
+      else if (s.kind === 'hull') {
+        dispatch({ type: 'unplace', uid: s.uid })
+        setBenchRot((m) => ({ ...m, [s.uid]: d.rotation }))
+        setSelected(null)
+      }
     } else if (over.type === 'sell' && s.kind !== 'shop') {
       dispatch({ type: 'sell', uid: s.uid })
+      setSelected(null)
     }
   }
+
+  // Keyboard: R rotates the dragged or selected module, Esc cancels.
+  const keyHandler = useRef<(e: KeyboardEvent) => void>(() => {})
+  const dropRef = useRef(drop)
+  const tapRef = useRef(tap)
+  // Latest-callback refs for window listeners.
+  useLayoutEffect(() => {
+    dropRef.current = drop
+    tapRef.current = tap
+    keyHandler.current = (e: KeyboardEvent) => {
+      if (['r', 'R', 'к', 'К'].includes(e.key)) {
+        const d = dragRef.current
+        if (d)
+          update({
+            ...d,
+            rotation: nextRotation(d.rotation),
+            grab: { x: 0, y: 0 },
+          })
+        else rotateSelected()
+      }
+      if (e.key === 'Escape') {
+        update(null)
+        setSelected(null)
+      }
+    }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyHandler.current(e)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     if (!drag) return
@@ -203,32 +296,18 @@ export function Shipyard({ run, dispatch }: Props) {
       const d = dragRef.current
       update(null)
       if (!d) return
-      if (d.moved) drop(d)
-      else tap(d)
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (['r', 'R', 'к', 'К'].includes(e.key)) rotateDrag()
-      if (e.key === 'Escape') update(null)
+      if (d.moved) dropRef.current(d)
+      else tapRef.current(d)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
-    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
-      window.removeEventListener('keydown', onKey)
     }
-    // Handlers read the latest drag through the ref; re-subscribe only on start/stop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drag === null])
-
-  const rotateDrag = () => {
-    const d = dragRef.current
-    if (d)
-      update({ ...d, rotation: nextRotation(d.rotation), grab: { x: 0, y: 0 } })
-  }
+  }, [drag === null, update]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cellPx = () =>
     document
@@ -290,7 +369,10 @@ export function Shipyard({ run, dispatch }: Props) {
                   ? drag.source.uid
                   : null
               }
+              selectedUid={selected?.kind === 'hull' ? selected.uid : null}
+              errorUid={errorUid}
               onModulePointerDown={onHullPointerDown}
+              onRotate={rotateSelected}
             />
           </div>
           <div
@@ -298,33 +380,93 @@ export function Shipyard({ run, dispatch }: Props) {
             data-drop="bench"
           >
             <div className="bench__title">склад · {run.bench.length}</div>
-            {run.bench.map((item) => (
-              <div
-                key={item.uid}
-                className={`bench__item ${
-                  dragging &&
-                  drag?.source.kind === 'bench' &&
-                  drag.source.uid === item.uid
-                    ? 'is-ghosted'
-                    : ''
-                }`}
-                onPointerDown={(e) =>
-                  startDrag(e, { kind: 'bench', uid: item.uid }, item.defId, 0)
-                }
-              >
-                <MiniShape defId={item.defId} />
-                <span>{label.get(item.uid)}</span>
-              </div>
-            ))}
+            {run.bench.map((item) => {
+              const isSel =
+                selected?.kind === 'bench' && selected.uid === item.uid
+              return (
+                <div
+                  key={item.uid}
+                  className={[
+                    'bench__item',
+                    isSel && 'is-selected',
+                    errorUid === item.uid && 'is-error',
+                    dragging &&
+                      drag?.source.kind === 'bench' &&
+                      drag.source.uid === item.uid &&
+                      'is-ghosted',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onPointerDown={(e) =>
+                    startDrag(
+                      e,
+                      { kind: 'bench', uid: item.uid },
+                      item.defId,
+                      benchRot[item.uid] ?? 0,
+                    )
+                  }
+                >
+                  <ModuleArt
+                    defId={item.defId}
+                    rotation={benchRot[item.uid] ?? 0}
+                    cell="16px"
+                  />
+                  <span>{label.get(item.uid)}</span>
+                </div>
+              )
+            })}
             {run.bench.length === 0 && (
               <p className="note">{dragging ? 'сюда — на склад' : 'пусто'}</p>
             )}
           </div>
         </div>
-        <p className="note">
-          тяни модули: снабжение → корпус или склад, корпус ↔ склад, на
-          снабжение — продать. Тап по модулю на корпусе — поворот.
-        </p>
+
+        <div className={`actions ${selectedItem ? '' : 'is-empty'}`}>
+          {selectedItem && selected ? (
+            <>
+              <span className="actions__what">
+                <b>{label.get(selectedItem.uid)}</b>{' '}
+                {def(selectedItem.defId).name}
+                <span className="note">
+                  {describeStats(def(selectedItem.defId).stats)}
+                </span>
+              </span>
+              <button className="actions__rotate" onClick={rotateSelected}>
+                ↻ повернуть
+              </button>
+              {selected.kind === 'bench' ? (
+                <button onClick={() => autoPlaceBench(selected.uid)}>
+                  на корпус
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    dispatch({ type: 'unplace', uid: selected.uid })
+                    setSelected({ kind: 'bench', uid: selected.uid })
+                  }}
+                >
+                  на склад
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  dispatch({ type: 'sell', uid: selected.uid })
+                  setSelected(null)
+                }}
+              >
+                продать +{sellPrice(def(selectedItem.defId).price)}
+              </button>
+              <button className="link-button" onClick={() => setSelected(null)}>
+                ✕
+              </button>
+            </>
+          ) : (
+            <span className="note">
+              тяни модули из снабжения на корпус. Тап по модулю — выбрать, потом
+              «↻» — повернуть.
+            </span>
+          )}
+        </div>
       </Sheet>
 
       <div className="shipyard__side">
@@ -348,9 +490,7 @@ export function Shipyard({ run, dispatch }: Props) {
           num="03"
           title="Снабжение"
           aside={<span className="gold">{run.gold} зол.</span>}
-          className={`shop-sheet ${ownedUid && dragging ? 'is-sell-target' : ''} ${
-            dragging?.over?.type === 'sell' ? 'is-over' : ''
-          }`}
+          className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
         >
           <div data-drop="sell">
             <div className="shop">
@@ -358,19 +498,25 @@ export function Shipyard({ run, dispatch }: Props) {
                 defId ? (
                   <div
                     key={slot}
-                    className={`offer ${def(defId).price > run.gold ? 'is-disabled' : ''} ${
+                    className={[
+                      'offer',
+                      `offer--${def(defId).stats.kind}`,
+                      def(defId).price > run.gold && 'is-disabled',
                       dragging &&
-                      drag?.source.kind === 'shop' &&
-                      drag.source.slot === slot
-                        ? 'is-ghosted'
-                        : ''
-                    }`}
+                        drag?.source.kind === 'shop' &&
+                        drag.source.slot === slot &&
+                        'is-ghosted',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     onPointerDown={(e) =>
                       def(defId).price <= run.gold &&
                       startDrag(e, { kind: 'shop', slot }, defId, 0)
                     }
                   >
-                    <MiniShape defId={defId} />
+                    <span className="offer__art">
+                      <ModuleArt defId={defId} cell="18px" />
+                    </span>
                     <span className="offer__name">{def(defId).name}</span>
                     <span className="offer__stats">
                       {describeStats(def(defId).stats)}
@@ -404,63 +550,21 @@ export function Shipyard({ run, dispatch }: Props) {
       </div>
 
       {dragging && dragging.over?.type !== 'cell' && (
-        <DragGhost drag={dragging} />
-      )}
-      {dragging && (
-        <button
-          className="rotate-fab"
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            rotateDrag()
+        <div
+          className="drag-ghost"
+          style={{
+            left: dragging.pos.x - (dragging.grab.x + 0.5) * dragging.cellPx,
+            top: dragging.pos.y - (dragging.grab.y + 0.5) * dragging.cellPx,
           }}
         >
-          ↻ повернуть
-        </button>
-      )}
-    </div>
-  )
-}
-
-function DragGhost({ drag }: { drag: Drag }) {
-  const cells = rotateShape(def(drag.defId).shape, drag.rotation)
-  const size = drag.cellPx
-  return (
-    <div
-      className={`drag-ghost cell--${def(drag.defId).stats.kind}`}
-      style={{
-        left: drag.pos.x - (drag.grab.x + 0.5) * size,
-        top: drag.pos.y - (drag.grab.y + 0.5) * size,
-      }}
-    >
-      {placedCells({ id: 'g', shape: cells, x: 0, y: 0, rotation: 0 }).map(
-        (c) => (
-          <i
-            key={`${c.x},${c.y}`}
-            style={{
-              left: c.x * size,
-              top: c.y * size,
-              width: size,
-              height: size,
-            }}
+          <ModuleArt
+            defId={dragging.defId}
+            rotation={dragging.rotation}
+            cell={`${dragging.cellPx}px`}
+            className={`module-art--${def(dragging.defId).stats.kind}`}
           />
-        ),
+        </div>
       )}
     </div>
-  )
-}
-
-function MiniShape({ defId }: { defId: string }) {
-  const rows = renderCells(def(defId).shape)
-  return (
-    <span
-      className={`mini-shape mini-shape--${def(defId).stats.kind}`}
-      style={{ gridTemplateColumns: `repeat(${rows[0]?.length ?? 1}, 7px)` }}
-    >
-      {rows.flatMap((row, y) =>
-        [...row].map((ch, x) => (
-          <i key={`${x},${y}`} className={ch === '#' ? 'on' : ''} />
-        )),
-      )}
-    </span>
   )
 }

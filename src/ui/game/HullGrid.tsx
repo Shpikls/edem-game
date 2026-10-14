@@ -7,6 +7,7 @@ import {
   type GridModule,
   type GridPreview,
 } from './gridHelpers.ts'
+import { ModuleArt } from './ModuleArt.tsx'
 
 interface Props {
   hull: Shape
@@ -14,14 +15,15 @@ interface Props {
   preview?: GridPreview | null
   /** Module hidden while it is being dragged. */
   hiddenUid?: string | null
-  /** uids to flash. */
-  active?: ReadonlySet<string>
+  selectedUid?: string | null
+  /** Module that just failed an action (shakes red). */
+  errorUid?: string | null
   onModulePointerDown?: (
     uid: string,
     cell: { x: number; y: number },
     e: ReactPointerEvent,
   ) => void
-  compact?: boolean
+  onRotate?: (uid: string) => void
 }
 
 const key = (x: number, y: number) => `${x},${y}`
@@ -37,9 +39,10 @@ export function HullGrid({
   items,
   preview,
   hiddenUid,
-  active,
+  selectedUid,
+  errorUid,
   onModulePointerDown,
-  compact,
+  onRotate,
 }: Props) {
   const visible = items.filter((m) => m.uid !== hiddenUid)
   const owner = new Map<string, GridModule>()
@@ -57,7 +60,7 @@ export function HullGrid({
 
   return (
     <div
-      className={`hull-grid ${compact ? 'hull-grid--compact' : ''}`}
+      className="hull-grid"
       style={{ gridTemplateColumns: `repeat(${width}, var(--cell))` }}
     >
       {Array.from({ length: width * height }, (_, i) => {
@@ -79,12 +82,12 @@ export function HullGrid({
             if (owner.get(key(x + dx, y + dy))?.uid !== m.uid)
               classes.push(`edge-${side}`)
           }
-          if (active?.has(m.uid)) classes.push('cell--active')
+          if (m.uid === selectedUid) classes.push('cell--selected')
+          if (m.uid === errorUid) classes.push('cell--error')
           if (onModulePointerDown) classes.push('is-draggable')
         }
         if (previewKeys.has(k))
           classes.push(previewOk ? 'cell--preview-ok' : 'cell--preview-bad')
-        const anchor = m && placedCells(toPlacement(m))[0]
         return (
           <div
             key={k}
@@ -95,13 +98,49 @@ export function HullGrid({
                 ? (e) => onModulePointerDown(m.uid, { x, y }, e)
                 : undefined
             }
-          >
-            {anchor && anchor.x === x && anchor.y === y && (
-              <span className="cell__label">{m.label}</span>
-            )}
-          </div>
+          />
         )
       })}
+
+      {visible.map((m) => (
+        <div
+          key={m.uid}
+          className={`hull-art ${m.uid === errorUid ? 'is-error' : ''}`}
+          style={{
+            left: `calc(var(--cell) * ${m.x})`,
+            top: `calc(var(--cell) * ${m.y})`,
+          }}
+        >
+          <ModuleArt defId={m.defId} rotation={m.rotation} cell="var(--cell)" />
+          <span className="hull-art__label">{m.label}</span>
+          {m.uid === selectedUid && onRotate && (
+            <button
+              className="rotate-badge"
+              title="Повернуть"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => onRotate(m.uid)}
+            >
+              ↻
+            </button>
+          )}
+        </div>
+      ))}
+
+      {preview && (
+        <div
+          className={`hull-art hull-art--preview ${previewOk ? '' : 'is-bad'}`}
+          style={{
+            left: `calc(var(--cell) * ${preview.x})`,
+            top: `calc(var(--cell) * ${preview.y})`,
+          }}
+        >
+          <ModuleArt
+            defId={preview.defId}
+            rotation={preview.rotation}
+            cell="var(--cell)"
+          />
+        </div>
+      )}
     </div>
   )
 }
