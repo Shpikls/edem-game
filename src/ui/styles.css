@@ -3630,3 +3630,42 @@ button:disabled:hover {
   margin: 0;
   white-space: nowrap;
 }
+
+/* Module outlines are drawn 1px inside their cells, so two neighbouring
+   modules keep a hairline gap instead of merging into one thick line. */
+.cell--filled.edge-t,
+.cell--filled.edge-r,
+.cell--filled.edge-b,
+.cell--filled.edge-l {
+  border-color: transparent;
+}
+
+.cell--filled::after {
+  content: '';
+  position: absolute;
+  top: var(--it, -2px);
+  right: var(--ir, -2px);
+  bottom: var(--ib, -2px);
+  left: var(--il, -2px);
+  border-style: solid;
+  border-color: var(--ink);
+  border-width: var(--bt, 0) var(--br, 0) var(--bb, 0) var(--bl, 0);
+  pointer-events: none;
+}
+
+.cell--filled.edge-t {
+  --it: 1px;
+  --bt: 1.5px;
+}
+.cell--filled.edge-r {
+  --ir: 1px;
+  --br: 1.5px;
+}
+.cell--filled.edge-b {
+  --ib: 1px;
+  --bb: 1.5px;
+}
+.cell--filled.edge-l {
+  --il: 1px;
+  --bl: 1.5px;
+}
