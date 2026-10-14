@@ -4042,3 +4042,25 @@ button:disabled:hover {
     --cell: clamp(16px, min(7.6vw, calc((100svh - 400px) / 10.4)), 40px);
   }
 }
+
+/* Phones: rounded bottom corners often report no safe-area inset —
+   reserve room anyway; and more space so section title tabs never touch. */
+@media (max-width: 760px) {
+  .app {
+    padding-bottom: max(26px, calc(env(safe-area-inset-bottom) + 10px));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .game {
+    gap: 26px;
+  }
+
+  .shipyard {
+    gap: 28px;
+  }
+
+  .sheet__title {
+    font-size: 13px;
+  }
+}
