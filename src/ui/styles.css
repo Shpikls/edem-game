@@ -1845,8 +1845,11 @@ button:disabled:hover {
   right: -4px;
   top: -6px;
   z-index: 1;
-  font: 600 10px/1 var(--font-mono);
-  padding: 2px 4px;
+  font:
+    11px/1 system-ui,
+    sans-serif;
+  letter-spacing: -0.5px;
+  padding: 2px 3px;
   border: 1px solid currentColor;
   background: var(--paper-deep);
   color: var(--ink);
@@ -1975,4 +1978,17 @@ button:disabled:hover {
   margin: 10px 0 0;
   font-size: 15px;
   color: var(--pencil-amber);
+}
+
+.actions button {
+  white-space: nowrap;
+  gap: 4px;
+}
+
+@media (max-width: 760px) {
+  .actions button {
+    font-size: 12px;
+    padding: 0 6px;
+    letter-spacing: 0.04em;
+  }
 }

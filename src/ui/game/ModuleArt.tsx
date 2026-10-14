@@ -58,7 +58,7 @@ export function ModuleArt({
       />
       {tier && tier > 1 && (
         <span className={`tier-badge tier-badge--${tier}`}>
-          {tier === 2 ? 'II' : 'III'}
+          {'★'.repeat(tier)}
         </span>
       )}
     </span>

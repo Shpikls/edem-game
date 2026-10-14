@@ -126,8 +126,7 @@ export function Shipyard({ run, dispatch }: Props) {
     ...p,
     label: label.get(p.uid) ?? '',
   }))
-  const tierName = (t?: number) =>
-    t === 3 ? ' Mk III' : t === 2 ? ' Mk II' : ''
+  const tierName = (t?: number) => (t === 3 ? ' ★★★' : t === 2 ? ' ★★' : '')
   const placementsExcept = (uid: string | null) =>
     run.placed.filter((p) => p.uid !== uid).map((p) => toPlacement(p))
 
