@@ -31,65 +31,70 @@ export interface Silhouette {
   lines: Pt[][]
 }
 
-/**
- * Fighter-style warship hugging the hold: the cross-shaped hold fills the
- * fuselage and the roots of the delta wings, with a thin margin around it.
- */
+/** Fighter-style warship around the hold: delta wings, twin tail, nose canopy. */
 export function silhouette(gw: number, gh: number): Silhouette {
   const c = gh / 2
+  // mirror a point across the horizontal centre line (bottom half = top half)
   const m = ([x, y]: Pt): Pt => [x, gh - y]
   const topWing: Pt[] = [
-    [gw + 0.3, c - 1.0],
-    [gw - 1.5, -0.35],
-    [1.4, -0.35],
-    [-0.4, 1.0],
-    [-0.2, c - 1.3],
+    [gw - 0.3, c - 1.2],
+    [2.4, -1.75],
+    [0.9, -1.95],
+    [-0.35, -1.55],
+    [-0.15, c - 1.35],
   ]
   const topTail: Pt[] = [
-    [-0.6, c - 1.0],
-    [-1.5, c - 1.9],
-    [-1.9, c - 1.85],
-    [-1.2, c - 0.95],
+    [-0.4, c - 1.05],
+    [-1.55, c - 2.15],
+    [-2.05, c - 2.05],
+    [-1.3, c - 0.95],
   ]
   return {
-    pad: { left: 2.0, right: 1.8, top: 0.6, bottom: 0.6 },
+    pad: { left: 2.2, right: 2.9, top: 2.05, bottom: 2.05 },
+    // fuselage: long body with a pointed nose
     hull: [
-      [-0.9, c - 1.05],
-      [gw - 0.1, c - 1.2],
-      [gw + 0.8, c - 0.55],
-      [gw + 1.65, c],
-      [gw + 0.8, c + 0.55],
-      [gw - 0.1, c + 1.2],
-      [-0.9, c + 1.05],
+      [-1.35, c - 1.05],
+      [gw - 0.2, c - 1.25],
+      [gw + 1.4, c - 0.6],
+      [gw + 2.75, c],
+      [gw + 1.4, c + 0.6],
+      [gw - 0.2, c + 1.25],
+      [-1.35, c + 1.05],
     ],
     fins: [topWing, topWing.map(m), topTail, topTail.map(m)],
     engines: [
-      { x: -1.5, y: c - 0.85, w: 0.6, h: 0.65 },
-      { x: -1.5, y: c + 0.2, w: 0.6, h: 0.65 },
+      { x: -1.95, y: c - 0.9, w: 0.65, h: 0.7 },
+      { x: -1.95, y: c + 0.2, w: 0.65, h: 0.7 },
     ],
     lines: [
       // canopy
       [
-        [gw + 0.35, c - 0.28],
-        [gw + 1.15, c],
-        [gw + 0.35, c + 0.28],
-        [gw + 0.05, c],
-        [gw + 0.35, c - 0.28],
+        [gw + 0.15, c - 0.32],
+        [gw + 1.25, c],
+        [gw + 0.15, c + 0.32],
+        [gw - 0.35, c],
+        [gw + 0.15, c - 0.32],
       ],
       // wingtip cannons
       [
-        [1.6, -0.5],
-        [gw - 1.6, -0.5],
+        [1.2, -1.9],
+        [2.9, -1.9],
       ],
-      [m([1.6, -0.5]), m([gw - 1.6, -0.5])],
+      [m([1.2, -1.9]), m([2.9, -1.9])],
+      // wing panel lines
+      [
+        [gw - 1.6, c - 1.25],
+        [1.3, -1.45],
+      ],
+      [m([gw - 1.6, c - 1.25]), m([1.3, -1.45])],
       // exhaust flames
       [
-        [-1.5, c - 0.52],
-        [-1.95, c - 0.52],
+        [-1.95, c - 0.55],
+        [-2.55, c - 0.55],
       ],
       [
-        [-1.5, c + 0.52],
-        [-1.95, c + 0.52],
+        [-1.95, c + 0.55],
+        [-2.55, c + 0.55],
       ],
     ],
   }

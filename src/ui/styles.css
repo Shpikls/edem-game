@@ -4042,14 +4042,3 @@ button:disabled:hover {
     --cell: clamp(16px, min(7.6vw, calc((100svh - 400px) / 10.4)), 40px);
   }
 }
-
-/* Phones: the tighter ship is 9.8 × 7.2 cells — size cells to fill the yard. */
-@media (max-width: 760px) {
-  :root {
-    --cell: clamp(
-      18px,
-      min(calc((100vw - 56px) / 9.8), calc((100svh - 400px) / 7.4)),
-      46px
-    );
-  }
-}
