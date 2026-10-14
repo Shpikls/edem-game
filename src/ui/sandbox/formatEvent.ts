@@ -15,11 +15,11 @@ export function formatEvent(
       const parts = [
         e.absorbed > 0 && `щит −${e.absorbed}`,
         e.blocked > 0 && `броня −${e.blocked}`,
-        `корпус −${e.hullDamage}`,
+        e.hullDamage > 0 && `корпус −${e.hullDamage}`,
       ].filter(Boolean)
       return (
         `${sideName[e.side]} · ${label(e.source)} → ${e.amount} ${damageTypeName[e.damageType]}: ` +
-        `${parts.join(', ')} | у цели щит ${e.shieldHp}, корпус ${e.hullHp}`
+        `${parts.join(', ') || 'без урона'} | у цели щит ${e.shieldHp}, корпус ${e.hullHp}`
       )
     }
     case 'shieldRegen':

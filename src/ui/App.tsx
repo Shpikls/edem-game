@@ -1,21 +1,17 @@
 import { useState } from 'react'
+import { Game } from './game/Game.tsx'
 import { BattleSandbox } from './sandbox/BattleSandbox.tsx'
-import { GridSandbox } from './sandbox/GridSandbox.tsx'
 import './styles.css'
 
-const tabs = { battle: 'Бой', grid: 'Сетка корпуса' } as const
+const tabs = { game: 'Забег', sandbox: 'Песочница боя' } as const
 type Tab = keyof typeof tabs
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('battle')
+  const [tab, setTab] = useState<Tab>('game')
   return (
     <div className="app">
       <header className="titleblock">
         <div className="titleblock__name">EDEM</div>
-        <div className="titleblock__cell">
-          <span>наименование</span>
-          Песочница баланса
-        </div>
         <nav className="titleblock__tabs">
           {(Object.keys(tabs) as Tab[]).map((t, i) => (
             <button
@@ -29,7 +25,7 @@ export function App() {
           ))}
         </nav>
       </header>
-      {tab === 'battle' ? <BattleSandbox /> : <GridSandbox />}
+      {tab === 'game' ? <Game /> : <BattleSandbox />}
     </div>
   )
 }

@@ -5,6 +5,7 @@ export interface ModuleDef {
   name: string
   /** Short drawing label, e.g. 'ЛЗ' → 'ЛЗ-1' on the hull grid. */
   code: string
+  price: number
   shape: Shape
   stats: ModuleStats
 }
@@ -15,6 +16,7 @@ export const modules = {
     id: 'laser',
     code: 'ЛЗ',
     name: 'Лазер',
+    price: 3,
     shape: parseShape(['##']),
     stats: {
       kind: 'weapon',
@@ -27,6 +29,7 @@ export const modules = {
     id: 'railgun',
     code: 'РС',
     name: 'Рельсотрон',
+    price: 4,
     shape: parseShape(['###']),
     stats: {
       kind: 'weapon',
@@ -39,6 +42,7 @@ export const modules = {
     id: 'shield',
     code: 'ЩТ',
     name: 'Щит',
+    price: 4,
     shape: parseShape(['##', '##']),
     stats: {
       kind: 'shield',
@@ -51,6 +55,7 @@ export const modules = {
     id: 'armor',
     code: 'БР',
     name: 'Броня',
+    price: 2,
     shape: parseShape(['#', '#']),
     stats: { kind: 'armor', armor: 3 },
   },
