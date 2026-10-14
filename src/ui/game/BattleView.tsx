@@ -22,6 +22,10 @@ interface Props {
 const JUMP_MS = 1_400
 /** Ships drop out of a jump before the fight starts. */
 const INTRO_MS = 900
+/** Before an emergency jump: real-time countdown while combat crawls in slow motion. */
+const COUNTDOWN_MS = 3_000
+/** How much combat time the slow-motion stretch covers before the killing blow. */
+const SLOWMO_SPAN_MS = 500
 
 /** Time after the last hit for the destruction animation. */
 const TAIL_MS = 1_900
@@ -91,6 +95,8 @@ export function BattleView({ run, battle, onNext }: Props) {
   // Emergency jump: combat time freezes at `at`, the jump animation runs for JUMP_MS.
   const [jump, setJump] = useState<{ at: number; start: number } | null>(null)
   const [jumpedOut, setJumpedOut] = useState(false)
+  // Remaining countdown in ms while slow motion runs (null = not started).
+  const [countdown, setCountdown] = useState<number | null>(null)
   // Lost with a jump in reserve: right before the killing blow the ship jumps out.
   const lethalAt = useMemo(() => {
     if (!battle.autoJump) return null
@@ -109,6 +115,7 @@ export function BattleView({ run, battle, onNext }: Props) {
 
   const stageRef = useRef<HTMLDivElement>(null)
   const jumpRef = useRef(jump)
+  const cdStart = useRef<number | null>(null)
   const holdRef = useRef<number | null>(null)
   const hold = lethalAt
   useEffect(() => {
@@ -153,21 +160,30 @@ export function BattleView({ run, battle, onNext }: Props) {
         introDone = true
         sceneRef.current?.setIntro(null)
       }
+      const lethal = holdRef.current
       setT((prev) => {
         if (jumpRef.current) return jumpRef.current.at
-        const limit = holdRef.current ?? result.durationMs + TAIL_MS
-        const next = Math.min(limit, prev + dt)
-        // Reached the killing blow → the emergency system fires.
-        if (
-          holdRef.current !== null &&
-          next >= holdRef.current &&
-          !jumpRef.current
-        ) {
-          jumpRef.current = { at: holdRef.current, start: now }
+        if (lethal === null)
+          return Math.min(result.durationMs + TAIL_MS, prev + dt)
+        const slowFrom = Math.max(0, lethal - SLOWMO_SPAN_MS)
+        if (cdStart.current === null) {
+          const next = Math.min(slowFrom, prev + dt)
+          if (next >= slowFrom) cdStart.current = now
+          return next
+        }
+        // Slow motion: combat creeps from slowFrom towards (never reaching) the lethal hit
+        // while the countdown runs in real time; at zero the ship jumps.
+        const k = Math.min(1, (now - cdStart.current) / COUNTDOWN_MS)
+        const next = slowFrom + k * (lethal - slowFrom)
+        if (k >= 1) {
+          jumpRef.current = { at: next, start: now }
           setJump(jumpRef.current)
         }
         return next
       })
+      if (cdStart.current !== null && !jumpRef.current) {
+        setCountdown(Math.max(0, COUNTDOWN_MS - (now - cdStart.current)))
+      }
       if (jumpRef.current) {
         const age = now - jumpRef.current.start
         sceneRef.current?.setJump(Math.min(JUMP_MS, age))
@@ -226,7 +242,16 @@ export function BattleView({ run, battle, onNext }: Props) {
           />
         </div>
         <div className="battle__stage" ref={stageRef}>
-          {jump && <div className="jump-overlay">аварийный прыжок</div>}
+          {(jump || countdown !== null) && (
+            <div className="jump-overlay">
+              <span>аварийный прыжок</span>
+              {!jump && countdown !== null && (
+                <b className="jump-overlay__count">
+                  {(countdown / 1000).toFixed(3)}
+                </b>
+              )}
+            </div>
+          )}
         </div>
         {done && (
           <p className="battle__summary">
@@ -252,12 +277,12 @@ export function BattleView({ run, battle, onNext }: Props) {
               x{s}
             </button>
           ))}
-          {!finished && !jump && (
+          {!finished && !jump && countdown === null && (
             <button
               onClick={() =>
                 setT(
                   hold !== null
-                    ? hold
+                    ? Math.max(t, hold - SLOWMO_SPAN_MS)
                     : done
                       ? result.durationMs + TAIL_MS
                       : result.durationMs,

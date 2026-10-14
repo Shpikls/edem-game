@@ -2601,3 +2601,33 @@ button:disabled:hover {
   background: #a8dcff;
   border-color: #a8dcff;
 }
+
+/* emergency jump: red alarm with a ms countdown */
+.jump-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 2px solid var(--pencil-red);
+  color: var(--pencil-red);
+  background: rgb(40 20 30 / 0.78);
+  animation: none;
+}
+
+.jump-overlay span {
+  animation: blink 0.35s ease-in-out infinite;
+  font-weight: 600;
+}
+
+.jump-overlay__count {
+  font: 600 34px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--pencil-red);
+  text-shadow: 0 0 12px rgb(255 138 102 / 0.6);
+}
+
+@media (max-width: 760px) {
+  .jump-overlay__count {
+    font-size: 28px;
+  }
+}

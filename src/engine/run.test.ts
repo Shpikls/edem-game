@@ -351,7 +351,9 @@ describe("emergency jumps are the ship's lives", () => {
     s = reduceRun(cfg, s, { type: 'next' })
     expect(s.phase).toBe('shop')
     expect(s.round).toBe(1)
-    expect(s.enemy).toEqual(enemy)
+    // a new enemy of the same level
+    expect(s.enemy.hullHp).toBe(enemy.hullHp)
+    expect(s.enemy.modules.length).toBe(enemy.modules.length)
     expect(s.gold).toBe(cfg.config.startGold + 2)
     expect(s.jumped).toBe(true)
   })

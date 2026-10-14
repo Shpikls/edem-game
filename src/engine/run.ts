@@ -369,8 +369,17 @@ export function reduceRun(
   if (state.phase === 'battle') {
     if (action.type !== 'next') return state
     // Saved by an emergency jump: back to the same mission, ship repaired.
-    if (state.lastBattle?.autoJump)
-      return { ...state, phase: 'shop', jumped: true }
+    if (state.lastBattle?.autoJump) {
+      // Same level, but a different enemy waits after the jump.
+      const enemy = rollEnemy(ctx, state.rngState, state.wins + 1)
+      return {
+        ...state,
+        phase: 'shop',
+        jumped: true,
+        enemy: enemy.enemy,
+        rngState: enemy.rngState,
+      }
+    }
     const over = state.lives <= 0 || state.round >= ctx.config.rounds
     if (over) return { ...state, phase: 'over' }
     return startRound(
