@@ -23,7 +23,6 @@ interface Props {
     cell: { x: number; y: number },
     e: ReactPointerEvent,
   ) => void
-  onRotate?: (uid: string) => void
 }
 
 const key = (x: number, y: number) => `${x},${y}`
@@ -42,7 +41,6 @@ export function HullGrid({
   selectedUid,
   errorUid,
   onModulePointerDown,
-  onRotate,
 }: Props) {
   const visible = items.filter((m) => m.uid !== hiddenUid)
   const owner = new Map<string, GridModule>()
@@ -113,16 +111,6 @@ export function HullGrid({
         >
           <ModuleArt defId={m.defId} rotation={m.rotation} cell="var(--cell)" />
           <span className="hull-art__label">{m.label}</span>
-          {m.uid === selectedUid && onRotate && (
-            <button
-              className="rotate-badge"
-              title="Повернуть"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => onRotate(m.uid)}
-            >
-              ↻
-            </button>
-          )}
         </div>
       ))}
 

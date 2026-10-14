@@ -39,6 +39,7 @@ type Over =
   | { type: 'cell'; x: number; y: number }
   | { type: 'bench' }
   | { type: 'sell' }
+  | { type: 'rotate' }
   | null
 
 interface Drag {
@@ -81,7 +82,8 @@ function hitTest(x: number, y: number): Over {
     return { type: 'cell', x: cx!, y: cy! }
   }
   const zone = el?.closest<HTMLElement>('[data-drop]')?.dataset.drop
-  if (zone === 'bench' || zone === 'sell') return { type: zone }
+  if (zone === 'bench' || zone === 'sell' || zone === 'rotate')
+    return { type: zone }
   return null
 }
 
@@ -285,11 +287,17 @@ export function Shipyard({ run, dispatch }: Props) {
         if (e.clientY < edge) window.scrollBy(0, -14)
         else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 14)
       }
+      const over = moved ? hitTest(e.clientX, e.clientY) : null
+      // Entering the rotate zone turns the module by 90°; leave and re-enter to turn again.
+      const entersRotate = over?.type === 'rotate' && d.over?.type !== 'rotate'
       update({
         ...d,
         moved,
         pos: { x: e.clientX, y: e.clientY },
-        over: moved ? hitTest(e.clientX, e.clientY) : null,
+        over,
+        ...(entersRotate
+          ? { rotation: nextRotation(d.rotation), grab: { x: 0, y: 0 } }
+          : {}),
       })
     }
     const onUp = () => {
@@ -372,8 +380,18 @@ export function Shipyard({ run, dispatch }: Props) {
               selectedUid={selected?.kind === 'hull' ? selected.uid : null}
               errorUid={errorUid}
               onModulePointerDown={onHullPointerDown}
-              onRotate={rotateSelected}
             />
+          </div>
+          <div
+            className={`rotate-zone ${dragging ? 'is-live' : ''} ${
+              dragging?.over?.type === 'rotate' ? 'is-over' : ''
+            }`}
+            data-drop="rotate"
+          >
+            <span className="rotate-zone__icon">↻</span>
+            <span className="rotate-zone__text">
+              {dragging ? 'заведи сюда — поворот' : 'поворот: заведи модуль'}
+            </span>
           </div>
           <div
             className={`bench ${dragging?.over?.type === 'bench' ? 'is-over' : ''}`}
@@ -410,6 +428,7 @@ export function Shipyard({ run, dispatch }: Props) {
                     defId={item.defId}
                     rotation={benchRot[item.uid] ?? 0}
                     cell="16px"
+                    grid
                   />
                   <span>{label.get(item.uid)}</span>
                 </div>
@@ -462,8 +481,8 @@ export function Shipyard({ run, dispatch }: Props) {
             </>
           ) : (
             <span className="note">
-              тяни модули из снабжения на корпус. Тап по модулю — выбрать, потом
-              «↻» — повернуть.
+              тяни модули из снабжения на корпус. Чтобы повернуть — проведи
+              модуль через «↻». Тап по модулю — меню.
             </span>
           )}
         </div>
@@ -515,7 +534,7 @@ export function Shipyard({ run, dispatch }: Props) {
                     }
                   >
                     <span className="offer__art">
-                      <ModuleArt defId={defId} cell="18px" />
+                      <ModuleArt defId={defId} cell="18px" grid />
                     </span>
                     <span className="offer__name">{def(defId).name}</span>
                     <span className="offer__stats">
@@ -561,7 +580,7 @@ export function Shipyard({ run, dispatch }: Props) {
             defId={dragging.defId}
             rotation={dragging.rotation}
             cell={`${dragging.cellPx}px`}
-            className={`module-art--${def(dragging.defId).stats.kind}`}
+            grid
           />
         </div>
       )}

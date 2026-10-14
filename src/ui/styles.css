@@ -1678,3 +1678,136 @@ button:disabled:hover {
 .hull-art__label {
   display: none;
 }
+
+/* ── rotate zone, module cells, uniform actions ───────── */
+
+.rotate-zone {
+  flex: none;
+  width: 84px;
+  align-self: center;
+  aspect-ratio: 1 / 1.4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed var(--ink-faint);
+  color: var(--ink-dim);
+  text-align: center;
+  user-select: none;
+  transition:
+    border-color 0.1s,
+    background 0.1s,
+    color 0.1s;
+}
+
+.rotate-zone__icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.rotate-zone__text {
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 0 6px;
+}
+
+.rotate-zone.is-live {
+  border: 1px solid var(--ink-dim);
+  color: var(--ink);
+}
+
+.rotate-zone.is-over {
+  background: var(--ink);
+  color: var(--paper-deep);
+  border-color: var(--ink);
+}
+
+.rotate-zone.is-over .rotate-zone__icon {
+  animation: spin 0.3s ease-out;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(-90deg);
+  }
+}
+
+/* show each occupied cell inside modules */
+.cell--filled {
+  box-shadow: inset 0 0 0 0.75px rgb(234 242 255 / 0.4);
+}
+
+.module-art__cell {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  opacity: 0.45;
+  background: rgb(234 242 255 / 0.06);
+}
+
+.actions button {
+  flex: 0 0 auto;
+  min-width: 128px;
+  height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actions .actions__rotate {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink-dim);
+}
+
+.actions .actions__rotate:hover {
+  border-color: var(--ink);
+  background: var(--ink-ghost);
+}
+
+.actions .link-button {
+  min-width: 40px;
+  width: 40px;
+  border: 1px solid var(--ink-dim);
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .yard {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'hull zone'
+      'bench bench';
+    align-items: center;
+  }
+
+  .yard .hull-wrap {
+    grid-area: hull;
+  }
+
+  .rotate-zone {
+    grid-area: zone;
+    width: 64px;
+  }
+
+  .rotate-zone__text {
+    font-size: 10px;
+  }
+
+  .yard .bench {
+    grid-area: bench;
+  }
+
+  .actions button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .actions .link-button {
+    flex: 0 0 40px;
+  }
+}
