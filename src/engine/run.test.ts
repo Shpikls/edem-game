@@ -52,8 +52,11 @@ const ctx: RunContext = {
     enemyBudget: (round) => round * 3,
     enemyHullHp: () => 30,
     tierMultiplier: [1, 1.5, 2],
-    crateOdds: [0.6, 0.3, 0.1],
+    crateOdds: () => [0.6, 0.3, 0.1],
     damagePerCrack: 10,
+    maxCracksPerBattle: 100,
+    cracksFromRound: 1,
+    firstShopWeapons: 0,
     repairCost: 2,
     stationEvery: 1,
   },
@@ -189,9 +192,9 @@ describe('cracks, repair, crates', () => {
   })
 
   test('crates turn into modules; higher tiers scale stats', () => {
-    let s = { ...createRun(ctx, 5), crates: 30 }
+    let s = { ...createRun(ctx, 5), crates: Array<number>(30).fill(5) }
     for (let i = 0; i < 30; i++) s = reduceRun(ctx, s, { type: 'openCrate' })
-    expect(s.crates).toBe(0)
+    expect(s.crates).toEqual([])
     expect(s.bench).toHaveLength(30)
     const tiers = new Set(s.bench.map((b) => b.tier ?? 1))
     expect(tiers.size).toBeGreaterThan(1)
@@ -220,4 +223,33 @@ test('station rounds: shop, repair and selling only every N rounds', () => {
   s = reduceRun(every2, s, { type: 'next' })
   expect(s.round).toBe(3)
   expect(s.station).toBe(true)
+})
+
+test('first shop always offers weapons; early crates have no stars', () => {
+  const strict = {
+    ...ctx,
+    config: {
+      ...ctx.config,
+      firstShopWeapons: 2,
+      crateOdds: (r: number): readonly [number, number, number] =>
+        r <= 3 ? [1, 0, 0] : [0, 0, 1],
+    },
+  }
+  for (let seed = 1; seed <= 30; seed++) {
+    const s = createRun(strict, seed)
+    expect(s.shop.filter((id) => id === 'gun').length).toBeGreaterThanOrEqual(2)
+  }
+  let s = { ...createRun(strict, 1), crates: [1, 2, 3, 8] }
+  for (let i = 0; i < 4; i++) s = reduceRun(strict, s, { type: 'openCrate' })
+  expect(s.bench.map((b) => b.tier ?? 1)).toEqual([1, 1, 1, 3])
+})
+
+test('cracks per battle are capped', () => {
+  const capped = {
+    ...ctx,
+    catalog: ctx.catalog.slice(0, 1),
+    config: { ...ctx.config, maxCracksPerBattle: 2, damagePerCrack: 1 },
+  }
+  const s = reduceRun(capped, createRun(capped, 1), { type: 'fight' })
+  expect(s.cracks.length).toBeLessThanOrEqual(2)
 })

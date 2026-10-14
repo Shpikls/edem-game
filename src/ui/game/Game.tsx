@@ -13,7 +13,7 @@ import { Shipyard } from './Shipyard.tsx'
 const newRun = () => createRun(runContext, Math.floor(Math.random() * 2 ** 31))
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v3', newRun())
+  const [run, setRun] = usePersistentState<RunState>('game.run.v4', newRun())
   const dispatch = (action: RunAction) =>
     setRun((s) => reduceRun(runContext, s, action))
   const { config } = runContext

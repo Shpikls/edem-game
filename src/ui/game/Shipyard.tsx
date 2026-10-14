@@ -220,7 +220,7 @@ export function Shipyard({ run, dispatch }: Props) {
   }
 
   const openCrate = () => {
-    if (run.crates <= 0) return
+    if (run.crates.length === 0) return
     setReveal(`i${run.nextUid}`)
     dispatch({ type: 'openCrate' })
   }
@@ -468,13 +468,13 @@ export function Shipyard({ run, dispatch }: Props) {
                 </div>
               )
             })}
-            {run.crates > 0 && (
+            {run.crates.length > 0 && (
               <button className="crate" onClick={openCrate}>
                 <span className="crate__icon">▣</span>
-                контейнер ×{run.crates} · вскрыть
+                контейнер ×{run.crates.length} · вскрыть
               </button>
             )}
-            {run.bench.length === 0 && run.crates === 0 && (
+            {run.bench.length === 0 && run.crates.length === 0 && (
               <p className="note">{dragging ? 'сюда — на склад' : 'пусто'}</p>
             )}
           </div>

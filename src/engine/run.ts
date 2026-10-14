@@ -27,10 +27,16 @@ export interface RunConfig {
   enemyHullHp: (round: number) => number
   /** Stat multiplier per tier: [Mk I, Mk II, Mk III]. */
   tierMultiplier: readonly [number, number, number]
-  /** Chance of each tier when opening a crate; sums to 1. */
-  crateOdds: readonly [number, number, number]
-  /** One hull cell cracks per this much hull damage taken in a battle. */
+  /** Tier odds [★, ★★, ★★★] for a crate earned in this round; sums to 1. */
+  crateOdds: (round: number) => readonly [number, number, number]
+  /** One hull cell cracks per this much hull damage taken in a battle… */
   damagePerCrack: number
+  /** …but never more than this many per battle. */
+  maxCracksPerBattle: number
+  /** No cracks before this round, so a fresh ship reaches its first repair stop intact. */
+  cracksFromRound: number
+  /** Minimum weapons offered in the very first shop. */
+  firstShopWeapons: number
   repairCost: number
   /** A supply station (shop, repair, selling) opens every N rounds, starting with round 1. */
   stationEvery: number
@@ -86,8 +92,8 @@ export interface RunState {
   nextUid: number
   /** Cracked hull cells ('x,y'): nothing can be placed there, modules on them don't fight. */
   cracks: string[]
-  /** Unopened loot crates. */
-  crates: number
+  /** Unopened loot crates: the round each one was earned in (sets tier odds). */
+  crates: number[]
   /** Supply station this round: shop, repair and selling are available. */
   station: boolean
 }
@@ -183,12 +189,21 @@ export function isCracked(
   return placedCells(toPlacement(ctx, p)).some((c) => cracks.has(cellKey(c)))
 }
 
-function rollShop(ctx: RunContext, rngState: number) {
+function rollShop(ctx: RunContext, rngState: number, minWeapons = 0) {
   const rng = createRng(rngState)
   const shop = Array.from(
     { length: ctx.config.shopSize },
     () => rng.pick(ctx.catalog).id,
   )
+  // Guarantee affordable weapons (first shop), replacing non-weapons from the end.
+  const weapons = ctx.catalog.filter(
+    (c) => c.stats.kind === 'weapon' && c.price <= ctx.config.startGold,
+  )
+  const isWeapon = (id: string) => entry(ctx, id).stats.kind === 'weapon'
+  for (let i = shop.length - 1; i >= 0 && weapons.length > 0; i--) {
+    if (shop.filter(isWeapon).length >= minWeapons) break
+    if (!isWeapon(shop[i]!)) shop[i] = rng.pick(weapons).id
+  }
   return { shop, rngState: rng.state }
 }
 
@@ -228,7 +243,11 @@ function rollEnemy(ctx: RunContext, rngState: number, round: number) {
 function startRound(ctx: RunContext, state: RunState, round: number): RunState {
   const station = isStationRound(ctx, round)
   const shop = station
-    ? rollShop(ctx, state.rngState)
+    ? rollShop(
+        ctx,
+        state.rngState,
+        round === 1 ? ctx.config.firstShopWeapons : 0,
+      )
     : { shop: [], rngState: state.rngState }
   const enemy = rollEnemy(ctx, shop.rngState, round)
   return {
@@ -257,7 +276,7 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     lastBattle: null,
     nextUid: 1,
     cracks: [],
-    crates: 0,
+    crates: [],
     station: true,
   }
   return startRound(ctx, base, 1)
@@ -400,7 +419,15 @@ export function reduceRun(
         .filter((k) => !state.cracks.includes(k))
       const newCracks = rng
         .shuffle(intact)
-        .slice(0, Math.floor(taken / ctx.config.damagePerCrack))
+        .slice(
+          0,
+          state.round < ctx.config.cracksFromRound
+            ? 0
+            : Math.min(
+                ctx.config.maxCracksPerBattle,
+                Math.floor(taken / ctx.config.damagePerCrack),
+              ),
+        )
 
       return {
         ...state,
@@ -418,7 +445,7 @@ export function reduceRun(
         gold: state.gold + (won ? ctx.config.winBonus : 0),
         lives: state.lives - (lost ? 1 : 0),
         cracks: [...state.cracks, ...newCracks],
-        crates: state.crates + (won ? 1 : 0),
+        crates: won ? [...state.crates, state.round] : state.crates,
       }
     }
     case 'repair': {
@@ -443,16 +470,17 @@ export function reduceRun(
       }
     }
     case 'openCrate': {
-      if (state.crates <= 0) return state
+      const earnedIn = state.crates[0]
+      if (earnedIn === undefined) return state
       const rng = createRng(state.rngState)
       const defId = rng.pick(ctx.catalog).id
       const roll = rng.next()
-      const [p1, p2] = ctx.config.crateOdds
+      const [p1, p2] = ctx.config.crateOdds(earnedIn)
       const tier: Tier = roll < p1 ? 1 : roll < p1 + p2 ? 2 : 3
       return {
         ...state,
         rngState: rng.state,
-        crates: state.crates - 1,
+        crates: state.crates.slice(1),
         bench: [...state.bench, { uid: `i${state.nextUid}`, defId, tier }],
         nextUid: state.nextUid + 1,
       }

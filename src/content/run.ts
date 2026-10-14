@@ -15,11 +15,21 @@ export const runConfig: RunConfig = {
   shopSize: 5,
   hullHp: frigate.hullHp,
   // Roughly what the player could have spent by this round, minus a bit.
-  enemyBudget: (round) => 4 + 3 * (round - 1),
-  enemyHullHp: (round) => 80 + 8 * round,
+  // Rounds 1–2 are a gentle ramp: one weapon, thin hull — a single bought weapon
+  // carries you to the second station.
+  enemyBudget: (round) => (round <= 2 ? 3 : 4 + 3 * (round - 1)),
+  enemyHullHp: (round) => (round <= 2 ? 50 + 10 * round : 80 + 8 * round),
   tierMultiplier: [1, 1.5, 2],
-  crateOdds: [0.6, 0.3, 0.1],
+  // No stars early; ★★ from round 4, ★★★ from round 5, frequent near the end.
+  crateOdds: (round) => {
+    const p2 = Math.min(0.45, Math.max(0, (round - 3) * 0.08))
+    const p3 = Math.min(0.25, Math.max(0, (round - 4) * 0.045))
+    return [1 - p2 - p3, p2, p3]
+  },
   damagePerCrack: 20,
+  maxCracksPerBattle: 3,
+  cracksFromRound: 3,
+  firstShopWeapons: 2,
   repairCost: 2,
   stationEvery: 2,
 }
