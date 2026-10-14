@@ -163,3 +163,30 @@ export function renderCells(cells: readonly Cell[], char = '#'): string[] {
   for (const c of cells) rows[c.y]![c.x] = char
   return rows.map((r) => r.join(''))
 }
+
+/**
+ * Greedy first-fit: places shapes in order, trying positions row by row and all rotations.
+ * Returns one placement per input (null if it didn't fit). Deterministic.
+ */
+export function autoPlace(
+  hull: Shape,
+  items: readonly { id: string; shape: Shape }[],
+): (Placement | null)[] {
+  const width = Math.max(...hull.map((c) => c.x)) + 1
+  const height = Math.max(...hull.map((c) => c.y)) + 1
+  const placed: Placement[] = []
+  return items.map(({ id, shape }) => {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        for (const rotation of [0, 1, 2, 3] as const) {
+          const candidate = { id, shape, x, y, rotation }
+          if (checkPlacement(hull, placed, candidate).ok) {
+            placed.push(candidate)
+            return candidate
+          }
+        }
+      }
+    }
+    return null
+  })
+}

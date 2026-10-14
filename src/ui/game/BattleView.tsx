@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { BattleScene, SceneShip } from '../../battle/BattleScene.ts'
 import { runContext } from '../../content/run.ts'
-import type {
-  Battle,
-  BattleEvent,
-  RunState,
-  Ship,
-  Side,
+import {
+  autoPlace,
+  type Battle,
+  type BattleEvent,
+  type RunState,
+  type Side,
 } from '../../engine/index.ts'
 import { Sheet } from '../sandbox/Sheet.tsx'
 import { formatEvent } from '../sandbox/formatEvent.ts'
 import { def, engineLabel, shieldMax } from './describe.ts'
-import { HullGrid, type GridModule } from './HullGrid.tsx'
 
 interface Props {
   run: RunState
@@ -18,8 +18,7 @@ interface Props {
   onNext: () => void
 }
 
-const FLASH_MS = 250
-const FLOAT_MS = 900
+const TAIL_MS = 1_600
 
 interface SideView {
   hull: number
@@ -34,15 +33,41 @@ function stateAt(battle: Battle, t: number): Record<Side, SideView> {
   }
   for (const e of battle.result.events) {
     if (e.t > t) break
-    if (e.type === 'hit') {
+    if (e.type === 'hit')
       view[e.target] = { hull: e.hullHp, shield: e.shieldHp }
-    } else if (e.type === 'shieldRegen') {
-      view[e.side].shield = e.shieldHp
-    } else if (e.type === 'overheat') {
-      view[e.target].hull = e.hullHp
-    }
+    else if (e.type === 'shieldRegen') view[e.side].shield = e.shieldHp
+    else if (e.type === 'overheat') view[e.target].hull = e.hullHp
   }
   return view
+}
+
+function sceneShips(run: RunState, battle: Battle): Record<Side, SceneShip> {
+  // Player engine ids are defId#n in placed order (see buildShip).
+  const counts = new Map<string, number>()
+  const player = run.placed.map((p) => {
+    const n = (counts.get(p.defId) ?? 0) + 1
+    counts.set(p.defId, n)
+    return {
+      id: `${p.defId}#${n}`,
+      shape: def(p.defId).shape,
+      x: p.x,
+      y: p.y,
+      rotation: p.rotation,
+      kind: def(p.defId).stats.kind,
+    }
+  })
+  const enemyItems = battle.enemy.modules.map((m) => ({
+    id: m.id,
+    shape: def(m.id.split('#')[0]!).shape,
+    kind: m.stats.kind,
+  }))
+  const enemy = autoPlace(runContext.hull, enemyItems).flatMap((p, i) =>
+    p ? [{ ...p, kind: enemyItems[i]!.kind }] : [],
+  )
+  return {
+    player: { hull: runContext.hull, modules: player },
+    enemy: { hull: runContext.hull, modules: enemy },
+  }
 }
 
 export function BattleView({ run, battle, onNext }: Props) {
@@ -54,100 +79,56 @@ export function BattleView({ run, battle, onNext }: Props) {
     speedRef.current = speed
   }, [speed])
 
+  const stageRef = useRef<HTMLDivElement>(null)
+  const sceneRef = useRef<BattleScene | null>(null)
+  const ships = useMemo(() => sceneShips(run, battle), [run, battle])
+
+  useEffect(() => {
+    let scene: BattleScene | null = null
+    let cancelled = false
+    // Pixi is loaded lazily so the shipyard opens without it.
+    void import('../../battle/BattleScene.ts').then(({ BattleScene }) => {
+      if (cancelled || !stageRef.current) return
+      scene = new BattleScene(battle, ships)
+      sceneRef.current = scene
+      void scene.mount(stageRef.current)
+    })
+    return () => {
+      cancelled = true
+      scene?.destroy()
+      sceneRef.current = null
+    }
+  }, [battle, ships])
+
   useEffect(() => {
     let frame = 0
     let last = performance.now()
     const tick = (now: number) => {
       const dt = (now - last) * speedRef.current
       last = now
-      setT((prev) => Math.min(result.durationMs + FLOAT_MS, prev + dt))
+      setT((prev) => Math.min(result.durationMs + TAIL_MS, prev + dt))
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [result])
 
+  useEffect(() => {
+    sceneRef.current?.render(t)
+  }, [t])
+
   const done = t >= result.durationMs
   const view = stateAt(battle, t)
-  const recent = result.events.filter((e) => e.t <= t && t - e.t < FLOAT_MS)
-  const firing = new Set(
-    recent
-      .filter((e) => e.type === 'hit' && t - e.t < FLASH_MS)
-      .map((e) => (e.type === 'hit' ? `${e.side}:${e.source}` : '')),
-  )
-
-  // Map engine ids (defId#n in placed order) back to placed items for the grid.
-  const playerGrid: GridModule[] = useMemo(() => {
-    const counts = new Map<string, number>()
-    return run.placed.map((p) => {
-      const n = (counts.get(p.defId) ?? 0) + 1
-      counts.set(p.defId, n)
-      return {
-        ...p,
-        uid: `${p.defId}#${n}`,
-        label: `${def(p.defId).code}-${n}`,
-      }
-    })
-  }, [run.placed])
-  const activePlayer = new Set(
-    [...firing].filter((f) => f.startsWith('player:')).map((f) => f.slice(7)),
-  )
-
   const log = result.events
     .filter((e) => e.t <= t && e.type !== 'shieldRegen')
-    .slice(-5)
+    .slice(-4)
     .reverse()
 
   return (
     <div className="battle">
-      <div className="battle__ships">
-        <ShipPanel
-          num="01"
-          title="Игрок"
-          side="player"
-          ship={battle.player}
-          view={view.player}
-          floats={recent}
-          t={t}
-          destroyed={
-            done && result.winner !== 'player' && view.player.hull <= 0
-          }
-        >
-          {playerGrid.length > 0 && (
-            <HullGrid
-              hull={runContext.hull}
-              items={playerGrid}
-              active={activePlayer}
-              compact
-            />
-          )}
-        </ShipPanel>
-        <ShipPanel
-          num="02"
-          title={`Враг · раунд ${run.round}`}
-          side="enemy"
-          ship={battle.enemy}
-          view={view.enemy}
-          floats={recent}
-          t={t}
-          destroyed={done && view.enemy.hull <= 0}
-        >
-          <ul className="enemy-modules">
-            {battle.enemy.modules.map((m) => (
-              <li
-                key={m.id}
-                className={firing.has(`enemy:${m.id}`) ? 'is-firing' : ''}
-              >
-                <span className="part__code">{engineLabel(m.id)}</span>
-              </li>
-            ))}
-          </ul>
-        </ShipPanel>
-      </div>
-
       <Sheet
-        num="03"
-        title={`Бой · ${(Math.min(t, result.durationMs) / 1000).toFixed(1)} с`}
+        num="01"
+        title={`Бой · раунд ${run.round} · ${(Math.min(t, result.durationMs) / 1000).toFixed(1)} с`}
         aside={
           done ? (
             <span className={`verdict verdict--${result.winner}`}>
@@ -160,17 +141,21 @@ export function BattleView({ run, battle, onNext }: Props) {
           ) : undefined
         }
       >
-        <ol className="log log--live">
-          {log.map((e, i) => (
-            <li
-              key={`${e.t}-${i}`}
-              className={`log__row log__row--${e.type} ${sideClass(e)}`}
-            >
-              <span className="log__time">{(e.t / 1000).toFixed(1)}</span>
-              <span>{formatEvent(e, engineLabel)}</span>
-            </li>
-          ))}
-        </ol>
+        <div className="battle__bars">
+          <ShipBars
+            side="player"
+            title="Игрок"
+            view={view.player}
+            battle={battle}
+          />
+          <ShipBars
+            side="enemy"
+            title="Враг"
+            view={view.enemy}
+            battle={battle}
+          />
+        </div>
+        <div className="battle__stage" ref={stageRef} />
         <div className="controls__row battle__controls">
           {[1, 2, 4].map((s) => (
             <button
@@ -193,6 +178,20 @@ export function BattleView({ run, battle, onNext }: Props) {
           )}
         </div>
       </Sheet>
+
+      <Sheet num="02" title="Журнал">
+        <ol className="log log--live">
+          {log.map((e, i) => (
+            <li
+              key={`${e.t}-${i}`}
+              className={`log__row log__row--${e.type} ${sideClass(e)}`}
+            >
+              <span className="log__time">{(e.t / 1000).toFixed(1)}</span>
+              <span>{formatEvent(e, engineLabel)}</span>
+            </li>
+          ))}
+        </ol>
+      </Sheet>
     </div>
   )
 }
@@ -201,62 +200,27 @@ function sideClass(e: BattleEvent): string {
   return `side--${e.type === 'overheat' ? e.target : e.side}`
 }
 
-function ShipPanel({
-  num,
-  title,
+function ShipBars({
   side,
-  ship,
+  title,
   view,
-  floats,
-  t,
-  destroyed,
-  children,
+  battle,
 }: {
-  num: string
-  title: string
   side: Side
-  ship: Ship
+  title: string
   view: SideView
-  floats: BattleEvent[]
-  t: number
-  destroyed: boolean
-  children: ReactNode
+  battle: Battle
 }) {
+  const ship = battle[side]
   const maxShield = shieldMax(ship)
-  const mine = floats.filter(
-    (e): e is Extract<BattleEvent, { type: 'hit' | 'overheat' }> =>
-      (e.type === 'hit' || e.type === 'overheat') && e.target === side,
-  )
-  const hitNow = mine.some((e) => t - e.t < FLASH_MS)
   return (
-    <Sheet
-      num={num}
-      title={title}
-      className={`ship-panel side--${side} ${hitNow ? 'is-hit' : ''} ${destroyed ? 'is-destroyed' : ''}`}
-    >
+    <div className={`ship-bars side--${side}`}>
+      <div className="ship-bars__title">{title}</div>
       <Bar label="корпус" value={view.hull} max={ship.hullHp} kind="hull" />
       {maxShield > 0 && (
         <Bar label="щит" value={view.shield} max={maxShield} kind="shield" />
       )}
-      <div className="ship-panel__body">
-        {children}
-        <div className="floats">
-          {mine.map((e, i) => (
-            <span
-              key={`${e.t}-${i}`}
-              className={`float float--${e.type === 'hit' && e.hullDamage === 0 ? 'shield' : e.type}`}
-              style={{
-                ['--age' as string]: (t - e.t) / FLOAT_MS,
-                left: `${20 + ((i * 37) % 60)}%`,
-              }}
-            >
-              −{e.amount}
-            </span>
-          ))}
-        </div>
-        {destroyed && <div className="wreck-stamp">уничтожен</div>}
-      </div>
-    </Sheet>
+    </div>
   )
 }
 

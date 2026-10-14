@@ -1190,3 +1190,53 @@ button:disabled:hover {
     font-size: 11px;
   }
 }
+
+.battle__bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.ship-bars__title {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 6px;
+}
+
+.ship-bars.side--enemy .ship-bars__title,
+.ship-bars.side--enemy .bar__value {
+  color: var(--pencil-amber);
+}
+
+.ship-bars.side--enemy .bar__track {
+  border-color: var(--pencil-amber);
+}
+
+.ship-bars.side--enemy .bar--hull .bar__fill {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--pencil-amber) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+.battle__stage {
+  position: relative;
+  height: clamp(220px, 42vw, 380px);
+  margin: 10px -6px 0;
+  border-top: 1px dotted var(--ink-faint);
+  border-bottom: 1px dotted var(--ink-faint);
+}
+
+.battle__stage canvas {
+  position: absolute;
+  inset: 0;
+}
+
+@media (max-width: 760px) {
+  .battle__bars {
+    gap: 12px;
+  }
+}

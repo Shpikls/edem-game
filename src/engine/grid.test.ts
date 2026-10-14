@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   adjacency,
+  autoPlace,
   checkPlacement,
   parseShape,
   placedCells,
@@ -167,5 +168,19 @@ describe('adjacency', () => {
       { x: 2, y: 2 },
       { x: 2, y: 3 },
     ])
+  })
+})
+
+describe('autoPlace', () => {
+  test('fits what it can without overlaps, returns null for the rest', () => {
+    const items = Array.from({ length: 12 }, (_, i) => ({
+      id: `b${i}`,
+      shape: BAR,
+    }))
+    const result = autoPlace(HULL, items)
+    const placed = result.filter((p) => p !== null)
+    expect(placed.length).toBeGreaterThan(0)
+    expect(result.some((p) => p === null)).toBe(true) // 12×3 cells > 20-cell hull
+    expect(validateLayout(HULL, placed)).toEqual([])
   })
 })
