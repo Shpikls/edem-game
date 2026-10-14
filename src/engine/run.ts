@@ -29,8 +29,6 @@ export interface RunConfig {
    */
   enemyBudget: (level: number) => number
   enemyHullHp: (level: number) => number
-  /** Extra gold after a lost battle. */
-  lossBonus: number
   /**
    * Emergency jumps per run — effectively the ship's lives. A lost battle
    * triggers one automatically: the ship escapes, is fully repaired and
@@ -387,12 +385,19 @@ export function reduceRun(
     if (action.type !== 'next') return state
     // Saved by an emergency jump: back to the same mission, ship repaired.
     if (state.lastBattle?.autoJump) {
-      // Same level, but a different enemy waits after the jump.
-      const enemy = rollEnemy(ctx, state.rngState, state.wins + 1)
+      // Emergency jump = rollback to before the fight (the fight already left
+      // gold, cracks and wins untouched), plus an emergency stop with a shop and
+      // paid repair, and a different enemy of the same level. The only price is
+      // the jump charge — dying never pays.
+      const shop = rollShop(ctx, state.rngState, state.round)
+      const enemy = rollEnemy(ctx, shop.rngState, state.wins + 1)
       return {
         ...state,
         phase: 'shop',
         jumped: true,
+        station: true,
+        shop: shop.shop,
+        shopTiers: shop.shopTiers,
         enemy: enemy.enemy,
         rngState: enemy.rngState,
       }
@@ -547,14 +552,12 @@ export function reduceRun(
           },
         },
         wins: state.wins + (won ? 1 : 0),
-        gold:
-          state.gold +
-          (won ? ctx.config.winBonus : 0) +
-          (lost ? ctx.config.lossBonus : 0),
+        gold: state.gold + (won ? ctx.config.winBonus : 0),
         lives: state.lives - (lost && !autoJump ? 1 : 0),
         jumps: state.jumps - (autoJump ? 1 : 0),
-        // A jump saves the ship but repairs nothing: dying must never be a free repair.
-        cracks: [...state.cracks, ...newCracks],
+        // A jump rolls the ship back to its pre-fight state: no new cracks,
+        // and no repair either.
+        cracks: autoJump ? state.cracks : [...state.cracks, ...newCracks],
         salvage: won
           ? [
               ...state.salvage,

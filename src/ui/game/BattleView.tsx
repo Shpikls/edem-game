@@ -219,7 +219,7 @@ export function BattleView({ run, battle, onNext }: Props) {
               {result.winner === 'player'
                 ? `победа +${runContext.config.winBonus} зол.`
                 : battle.autoJump
-                  ? `аварийный прыжок · +${runContext.config.lossBonus} зол.`
+                  ? 'аварийный прыжок'
                   : 'корабль уничтожен'}
             </span>
           ) : undefined
@@ -299,7 +299,7 @@ export function BattleView({ run, battle, onNext }: Props) {
             result.winner === 'player'
               ? `+${runContext.config.winBonus} зол. · обломки врага можно обыскать`
               : battle.autoJump
-                ? `+${runContext.config.lossBonus} зол. · корабль спасён · прыжков: ${run.jumps}`
+                ? `корабль откатился к состоянию до боя · прыжков: ${run.jumps}`
                 : 'аварийных прыжков не осталось'
           }
           sub={
