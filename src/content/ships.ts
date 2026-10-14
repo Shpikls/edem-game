@@ -36,12 +36,14 @@ function fighter(gw: number, gh: number): Silhouette {
   const c = gh / 2
   // mirror a point across the horizontal centre line (bottom half = top half)
   const m = ([x, y]: Pt): Pt => [x, gh - y]
+  // The wing root overlaps the fuselage and its leading edge clears the hold's
+  // corners (checked by ships.test.ts).
   const topWing: Pt[] = [
-    [gw - 0.3, c - 1.2],
-    [2.4, -1.75],
-    [0.9, -1.95],
+    [gw + 0.62, c - 0.9],
+    [3.1, -1.75],
+    [1.4, -1.95],
     [-0.35, -1.55],
-    [-0.15, c - 1.35],
+    [-0.15, c - 0.9],
   ]
   const topTail: Pt[] = [
     [-0.4, c - 1.05],
@@ -53,13 +55,13 @@ function fighter(gw: number, gh: number): Silhouette {
     pad: { left: 2.2, right: 2.9, top: 2.05, bottom: 2.05 },
     // fuselage: long body with a pointed nose
     hull: [
-      [-1.35, c - 1.05],
-      [gw - 0.2, c - 1.25],
-      [gw + 1.4, c - 0.6],
+      [-1.35, c - 1.25],
+      [gw + 0.6, c - 1.25],
+      [gw + 1.6, c - 0.55],
       [gw + 2.75, c],
-      [gw + 1.4, c + 0.6],
-      [gw - 0.2, c + 1.25],
-      [-1.35, c + 1.05],
+      [gw + 1.6, c + 0.55],
+      [gw + 0.6, c + 1.25],
+      [-1.35, c + 1.25],
     ],
     fins: [topWing, topWing.map(m), topTail, topTail.map(m)],
     engines: [
