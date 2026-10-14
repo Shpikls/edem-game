@@ -3669,3 +3669,14 @@ button:disabled:hover {
   --il: 1px;
   --bl: 1.5px;
 }
+
+.hold-underlay {
+  position: absolute;
+  width: var(--cell);
+  height: var(--cell);
+  margin: -1px;
+  box-sizing: content-box;
+  padding: 1px;
+  background: #10396a;
+  pointer-events: none;
+}

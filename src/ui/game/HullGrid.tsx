@@ -119,6 +119,17 @@ export function HullGrid({
         className="hull-grid"
         style={{ gridTemplateColumns: `repeat(${width}, var(--cell))` }}
       >
+        {/* solid bay under the hold: ship lines never show through modules or cells */}
+        {hull.map((c) => (
+          <div
+            key={`u${c.x},${c.y}`}
+            className="hold-underlay"
+            style={{
+              left: `calc(var(--cell) * ${c.x})`,
+              top: `calc(var(--cell) * ${c.y})`,
+            }}
+          />
+        ))}
         {Array.from({ length: width * height }, (_, i) => {
           const x = i % width
           const y = Math.floor(i / width)
