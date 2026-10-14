@@ -687,6 +687,10 @@ function drawShip(
   }
   g.stroke({ width: 1.5, color, alpha: 0.6 })
 
+  // the hold is an inset bay over the ship's lines
+  for (const c of data.hull) g.rect(lx(c.x) * cell, c.y * cell, cell, cell)
+  g.fill({ color: 0x10396a, alpha: 0.9 })
+
   // the hold contour, lighter
   for (const c of data.hull) {
     const x = lx(c.x) * cell

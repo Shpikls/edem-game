@@ -12,7 +12,7 @@ export const runConfig: RunConfig = {
   income: 3,
   winBonus: 1,
   rerollCost: 1,
-  shopSize: 5,
+  shopSize: 4,
   hullHp: frigate.hullHp,
   // Roughly what the player could have spent by this round, minus a bit.
   // By level (= wins + 1). Levels 1–2 are a gentle ramp: one weapon, thin hull —

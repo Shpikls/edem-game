@@ -248,7 +248,8 @@ test('first shop always offers weapons; early crates have no stars', () => {
   }
   for (let seed = 1; seed <= 30; seed++) {
     const s = createRun(strict, seed)
-    expect(s.shop.filter((id) => id === 'gun').length).toBeGreaterThanOrEqual(2)
+    // the test catalog has a single weapon type, and offers are distinct
+    expect(s.shop).toContain('gun')
   }
   let s = {
     ...createRun(strict, 1),
@@ -378,4 +379,23 @@ describe("emergency jumps are the ship's lives", () => {
     expect(outcomes).toEqual([true, true, false])
     expect(s.round).toBe(1)
   })
+})
+
+test('shop offers are all different module types', () => {
+  const wide = {
+    ...ctx,
+    catalog: [
+      ...ctx.catalog,
+      { ...ctx.catalog[0]!, id: 'gun2' },
+      { ...ctx.catalog[1]!, id: 'plate2' },
+    ],
+    config: { ...ctx.config, shopSize: 3 },
+  }
+  for (let seed = 1; seed <= 30; seed++) {
+    let s = createRun(wide, seed)
+    for (let r = 0; r < 3; r++) {
+      expect(new Set(s.shop).size).toBe(s.shop.length)
+      s = reduceRun(wide, { ...s, gold: 10 }, { type: 'reroll' })
+    }
+  }
 })

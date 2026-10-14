@@ -249,18 +249,24 @@ function rollShop(
   minWeapons = 0,
 ) {
   const rng = createRng(rngState)
-  const shop = Array.from(
-    { length: ctx.config.shopSize },
-    () => rng.pick(ctx.catalog).id,
-  )
-  // Guarantee affordable weapons (first shop), replacing non-weapons from the end.
-  const weapons = ctx.catalog.filter(
-    (c) => c.stats.kind === 'weapon' && c.price <= ctx.config.startGold,
-  )
+  // Every offer is a different module type (as long as the catalog allows).
+  const ids = rng.shuffle(ctx.catalog.map((c) => c.id))
+  const size = Math.min(ctx.config.shopSize, ids.length)
+  const shop = ids.slice(0, size)
+  // Guarantee affordable weapons (first shop): swap non-weapons from the end
+  // for weapons that aren't on offer yet.
   const isWeapon = (id: string) => entry(ctx, id).stats.kind === 'weapon'
-  for (let i = shop.length - 1; i >= 0 && weapons.length > 0; i--) {
+  for (let i = shop.length - 1; i >= 0; i--) {
     if (shop.filter(isWeapon).length >= minWeapons) break
-    if (!isWeapon(shop[i]!)) shop[i] = rng.pick(weapons).id
+    if (isWeapon(shop[i]!)) continue
+    const spare = ctx.catalog.filter(
+      (c) =>
+        c.stats.kind === 'weapon' &&
+        c.price <= ctx.config.startGold &&
+        !shop.includes(c.id),
+    )
+    if (spare.length === 0) break
+    shop[i] = rng.pick(spare).id
   }
   const odds = ctx.config.shopTierOdds(round)
   const shopTiers = shop.map(() => rollTier(rng.next(), odds))
