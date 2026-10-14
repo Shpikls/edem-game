@@ -161,11 +161,7 @@ export function SalvageScreen({
             {stage === 'idle' ? 'тапни, чтобы обыскать' : 'сканирование…'}
           </p>
           {pool.length > 0 && (
-            <p className="salvage__pool-title">
-              {stage === 'idle'
-                ? 'в обломках было — уцелеет один модуль:'
-                : 'в обломках было:'}
-            </p>
+            <p className="salvage__pool-title">в обломках было:</p>
           )}
           {pool.length > 0 && (
             <div className="salvage__pool">
