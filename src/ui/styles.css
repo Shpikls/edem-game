@@ -4009,3 +4009,36 @@ button:disabled:hover {
     --cell: clamp(16px, min(8.2vw, calc((100svh - 360px) / 10.4)), 40px);
   }
 }
+
+/* Phones: keep clear of rounded corners, notches and the home indicator. */
+@media (max-width: 760px) {
+  .app {
+    padding: max(12px, env(safe-area-inset-top))
+      max(14px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .game {
+    gap: 20px;
+  }
+
+  .shipyard {
+    gap: 22px;
+  }
+
+  .sheet,
+  .shipyard__yard,
+  .shop-sheet,
+  .station-off {
+    padding: 18px 10px 10px;
+  }
+
+  .hud {
+    padding: 8px 10px;
+  }
+
+  :root {
+    --cell: clamp(16px, min(7.6vw, calc((100svh - 400px) / 10.4)), 40px);
+  }
+}
