@@ -3577,3 +3577,37 @@ button:disabled:hover {
   position: static;
   margin-top: 18px;
 }
+
+/* no fade-in: the screen must cover the shipyard instantly (no flash) */
+.crate-screen {
+  animation: none;
+}
+
+/* longer scan (3.5 s) */
+.salvage--scanning .wreck__scan {
+  animation: scan 0.875s ease-in-out 4 alternate;
+}
+
+.salvage--scanning .wreck__frag--find rect {
+  animation: found 3.5s ease-in forwards;
+}
+
+.salvage__mini.is-found {
+  animation: survivor 3.5s ease-in forwards;
+}
+
+/* candidates: uniform squares, no tilting */
+.salvage__mini {
+  width: 60px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+@keyframes broken {
+  to {
+    opacity: 0.35;
+    border-color: var(--pencil-red);
+  }
+}

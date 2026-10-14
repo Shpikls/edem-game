@@ -5,7 +5,7 @@ import { def, describeStats } from './describe.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import { ShipGlyph } from './ShipGlyph.tsx'
 
-const SCAN_MS = 2000
+const SCAN_MS = 3500
 /** Warp transition back to the shipyard after the last wreck. */
 const LEAVE_MS = 3000
 const CELL = 40
@@ -171,7 +171,7 @@ export function SalvageScreen({
                       stage === 'scanning' && !found ? 'is-broken' : ''
                     }`}
                     style={{
-                      animationDelay: `${0.2 + (i / Math.max(1, pool.length)) * 1.3}s`,
+                      animationDelay: `${0.3 + (i / Math.max(1, pool.length)) * 2.4}s`,
                     }}
                   >
                     <ModuleArt defId={id} cell="16px" grid />
