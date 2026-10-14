@@ -59,6 +59,9 @@ const ctx: RunContext = {
     firstShopWeapons: 0,
     repairCost: 2,
     stationEvery: 1,
+    stationEveryRoundFrom: 100,
+    shopTierOdds: () => [1, 0, 0],
+    tierPriceMultiplier: [1, 1.5, 2],
   },
 }
 
@@ -288,5 +291,35 @@ test('a win records the enemy loadout as salvage', () => {
   s = reduceRun(gunsOnly, s, { type: 'fight' })
   if (s.lastBattle!.result.winner === 'player') {
     expect(s.salvage).toEqual([{ round: 1, pool: ['gun'] }])
+  }
+})
+
+test('late game: a station every round, star offers cost more', () => {
+  const late = {
+    ...ctx,
+    config: {
+      ...ctx.config,
+      stationEvery: 2,
+      stationEveryRoundFrom: 3,
+      lives: 10,
+      rounds: 10,
+      shopTierOdds: (r: number): readonly [number, number, number] =>
+        r >= 3 ? [0, 1, 0] : [1, 0, 0],
+    },
+  }
+  let s = createRun(late, 1)
+  const stations: boolean[] = []
+  for (let i = 0; i < 5; i++) {
+    stations.push(s.station)
+    s = reduceRun(late, s, { type: 'fight' })
+    s = reduceRun(late, s, { type: 'next' })
+  }
+  expect(stations).toEqual([true, false, true, true, true])
+  expect(s.shopTiers.every((t) => t === 2)).toBe(true)
+  const slot = s.shop.indexOf('gun')
+  if (slot >= 0) {
+    const bought = reduceRun(late, { ...s, gold: 100 }, { type: 'buy', slot })
+    expect(bought.gold).toBe(100 - Math.ceil(3 * 1.5))
+    expect(bought.bench.at(-1)?.tier).toBe(2)
   }
 })

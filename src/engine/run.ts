@@ -38,8 +38,14 @@ export interface RunConfig {
   /** Minimum weapons offered in the very first shop. */
   firstShopWeapons: number
   repairCost: number
-  /** A supply station (shop, repair, selling) opens every N rounds, starting with round 1. */
+  /** A supply station (shop, repair, selling) opens every N rounds, starting with round 1… */
   stationEvery: number
+  /** …and every round from this one on. */
+  stationEveryRoundFrom: number
+  /** Tier odds [★, ★★, ★★★] for each shop offer in this round. */
+  shopTierOdds: (round: number) => readonly [number, number, number]
+  /** Price multiplier per tier in the shop. */
+  tierPriceMultiplier: readonly [number, number, number]
 }
 
 export type Tier = 1 | 2 | 3
@@ -92,6 +98,8 @@ export interface RunState {
   phase: 'shop' | 'battle' | 'over'
   /** null = already bought this visit. */
   shop: (string | null)[]
+  /** Tier of each shop slot (same indices as `shop`). */
+  shopTiers: Tier[]
   bench: Item[]
   placed: PlacedItem[]
   enemy: Ship
@@ -133,12 +141,30 @@ const entry = (ctx: RunContext, defId: string): CatalogEntry => {
 export const cellKey = (c: Cell) => `${c.x},${c.y}`
 
 export const isStationRound = (ctx: RunContext, round: number) =>
+  round >= ctx.config.stationEveryRoundFrom ||
   (round - 1) % ctx.config.stationEvery === 0
 
 /** Rounds until the next station (0 = this round). */
 export function roundsToStation(ctx: RunContext, round: number): number {
-  const k = ctx.config.stationEvery
-  return (k - ((round - 1) % k)) % k
+  let k = 0
+  while (!isStationRound(ctx, round + k)) k++
+  return k
+}
+
+const rollTier = (
+  roll: number,
+  [p1, p2]: readonly [number, number, number],
+): Tier => (roll < p1 ? 1 : roll < p1 + p2 ? 2 : 3)
+
+/** Shop price of a module at a tier. */
+export function offerPrice(
+  ctx: RunContext,
+  defId: string,
+  tier: Tier = 1,
+): number {
+  return Math.ceil(
+    entry(ctx, defId).price * ctx.config.tierPriceMultiplier[tier - 1]!,
+  )
 }
 
 export function scaleStats(stats: ModuleStats, m: number): ModuleStats {
@@ -196,7 +222,12 @@ export function isCracked(
   return placedCells(toPlacement(ctx, p)).some((c) => cracks.has(cellKey(c)))
 }
 
-function rollShop(ctx: RunContext, rngState: number, minWeapons = 0) {
+function rollShop(
+  ctx: RunContext,
+  rngState: number,
+  round: number,
+  minWeapons = 0,
+) {
   const rng = createRng(rngState)
   const shop = Array.from(
     { length: ctx.config.shopSize },
@@ -211,7 +242,9 @@ function rollShop(ctx: RunContext, rngState: number, minWeapons = 0) {
     if (shop.filter(isWeapon).length >= minWeapons) break
     if (!isWeapon(shop[i]!)) shop[i] = rng.pick(weapons).id
   }
-  return { shop, rngState: rng.state }
+  const odds = ctx.config.shopTierOdds(round)
+  const shopTiers = shop.map(() => rollTier(rng.next(), odds))
+  return { shop, shopTiers, rngState: rng.state }
 }
 
 /**
@@ -253,9 +286,10 @@ function startRound(ctx: RunContext, state: RunState, round: number): RunState {
     ? rollShop(
         ctx,
         state.rngState,
+        round,
         round === 1 ? ctx.config.firstShopWeapons : 0,
       )
-    : { shop: [], rngState: state.rngState }
+    : { shop: [], shopTiers: [], rngState: state.rngState }
   const enemy = rollEnemy(ctx, shop.rngState, round)
   return {
     ...state,
@@ -263,6 +297,7 @@ function startRound(ctx: RunContext, state: RunState, round: number): RunState {
     phase: 'shop',
     station,
     shop: shop.shop,
+    shopTiers: shop.shopTiers,
     enemy: enemy.enemy,
     rngState: enemy.rngState,
   }
@@ -277,6 +312,7 @@ export function createRun(ctx: RunContext, seed: number): RunState {
     wins: 0,
     phase: 'shop',
     shop: [],
+    shopTiers: [],
     bench: [],
     placed: [],
     enemy: { hullHp: 1, modules: [] },
@@ -326,14 +362,15 @@ export function reduceRun(
     case 'buy': {
       const defId = state.shop[action.slot]
       if (!defId) return state
-      const { price } = entry(ctx, defId)
+      const tier = state.shopTiers[action.slot] ?? 1
+      const price = offerPrice(ctx, defId, tier)
       if (price > state.gold) return state
       const uid = `i${state.nextUid}`
       const bought: RunState = {
         ...state,
         gold: state.gold - price,
         shop: state.shop.map((s, i) => (i === action.slot ? null : s)),
-        bench: [...state.bench, { uid, defId }],
+        bench: [...state.bench, toItem({ uid, defId, tier })],
         nextUid: state.nextUid + 1,
       }
       return action.place
@@ -342,11 +379,12 @@ export function reduceRun(
     }
     case 'reroll': {
       if (state.gold < ctx.config.rerollCost) return state
-      const shop = rollShop(ctx, state.rngState)
+      const shop = rollShop(ctx, state.rngState, state.round)
       return {
         ...state,
         gold: state.gold - ctx.config.rerollCost,
         shop: shop.shop,
+        shopTiers: shop.shopTiers,
         rngState: shop.rngState,
       }
     }
@@ -492,9 +530,7 @@ export function reduceRun(
         ctx.catalog.some((c) => c.id === id),
       )
       const defId = pool.length > 0 ? rng.pick(pool) : rng.pick(ctx.catalog).id
-      const roll = rng.next()
-      const [p1, p2] = ctx.config.crateOdds(wreck.round)
-      const tier: Tier = roll < p1 ? 1 : roll < p1 + p2 ? 2 : 3
+      const tier = rollTier(rng.next(), ctx.config.crateOdds(wreck.round))
       return {
         ...state,
         rngState: rng.state,

@@ -9,6 +9,7 @@ import {
 import { runContext } from '../../content/run.ts'
 import {
   isCracked,
+  offerPrice,
   roundsToStation,
   itemStats,
   sellPrice,
@@ -381,7 +382,25 @@ export function Shipyard({ run, dispatch }: Props) {
 
   return (
     <div className={`shipyard ${dragging ? 'is-dragging' : ''}`}>
-      <Sheet num="01" title="Верфь" className="shipyard__yard">
+      <Sheet
+        num="01"
+        title={`Противник · раунд ${run.round}`}
+        className="side--enemy shipyard__enemy"
+      >
+        <div className="enemy-bar">
+          <p className="enemy-line">
+            корпус {run.enemy.hullHp} ·{' '}
+            {enemy.length === 0
+              ? 'без модулей'
+              : enemy.map((e) => `${def(e.defId).name} ×${e.count}`).join(', ')}
+          </p>
+          <button className="stamp" onClick={() => dispatch({ type: 'fight' })}>
+            В бой
+          </button>
+        </div>
+      </Sheet>
+
+      <Sheet num="02" title="Верфь" className="shipyard__yard">
         <div className="yard">
           <div className="hull-wrap">
             <HullGrid
@@ -452,9 +471,13 @@ export function Shipyard({ run, dispatch }: Props) {
                     rotation={benchRot[item.uid] ?? 0}
                     cell="16px"
                     grid
-                    tier={item.tier}
                   />
                   <span>{label.get(item.uid)}</span>
+                  {item.tier && item.tier > 1 && (
+                    <span className={`stars stars--${item.tier}`}>
+                      {'★'.repeat(item.tier)}
+                    </span>
+                  )}
                 </div>
               )
             })}
@@ -560,22 +583,6 @@ export function Shipyard({ run, dispatch }: Props) {
       </Sheet>
 
       <div className={`shipyard__side ${run.station ? '' : 'is-off-station'}`}>
-        <Sheet
-          num="02"
-          title={`Противник · раунд ${run.round}`}
-          className="side--enemy"
-        >
-          <p className="enemy-line">
-            корпус {run.enemy.hullHp} ·{' '}
-            {enemy.length === 0
-              ? 'без модулей'
-              : enemy.map((e) => `${def(e.defId).name} ×${e.count}`).join(', ')}
-          </p>
-          <button className="stamp" onClick={() => dispatch({ type: 'fight' })}>
-            В бой
-          </button>
-        </Sheet>
-
         {run.station ? (
           <Sheet
             num="03"
@@ -585,14 +592,17 @@ export function Shipyard({ run, dispatch }: Props) {
           >
             <div data-drop="sell">
               <div className="shop">
-                {run.shop.map((defId, slot) =>
-                  defId ? (
+                {run.shop.map((defId, slot) => {
+                  const tier = run.shopTiers[slot] ?? 1
+                  const price = defId ? offerPrice(runContext, defId, tier) : 0
+                  return defId ? (
                     <div
                       key={slot}
                       className={[
                         'offer',
                         `offer--${def(defId).stats.kind}`,
-                        def(defId).price > run.gold && 'is-disabled',
+                        price > run.gold && 'is-disabled',
+                        tier > 1 && `offer--t${tier}`,
                         dragging &&
                           drag?.source.kind === 'shop' &&
                           drag.source.slot === slot &&
@@ -601,27 +611,33 @@ export function Shipyard({ run, dispatch }: Props) {
                         .filter(Boolean)
                         .join(' ')}
                       onPointerDown={(e) =>
-                        def(defId).price <= run.gold &&
+                        price <= run.gold &&
                         startDrag(e, { kind: 'shop', slot }, defId, 0)
                       }
                     >
                       <span className="offer__art">
                         <ModuleArt defId={defId} cell="18px" grid />
                       </span>
-                      <span className="offer__name">{def(defId).name}</span>
+                      <span className="offer__name">
+                        {def(defId).name}
+                        {tier > 1 && (
+                          <span className={`stars stars--${tier}`}>
+                            {' '}
+                            {'★'.repeat(tier)}
+                          </span>
+                        )}
+                      </span>
                       <span className="offer__stats">
-                        {describeStats(def(defId).stats)}
+                        {describeStats(itemStats(runContext, { defId, tier }))}
                       </span>
-                      <span className="offer__price">
-                        {def(defId).price} зол.
-                      </span>
+                      <span className="offer__price">{price} зол.</span>
                     </div>
                   ) : (
                     <div key={slot} className="offer offer--sold">
                       продано
                     </div>
-                  ),
-                )}
+                  )
+                })}
               </div>
               <div className="add-row shop__actions">
                 <button

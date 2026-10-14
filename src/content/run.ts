@@ -32,6 +32,10 @@ export const runConfig: RunConfig = {
   firstShopWeapons: 2,
   repairCost: 2,
   stationEvery: 2,
+  // Endgame: a station every round with star modules on sale.
+  stationEveryRoundFrom: 7,
+  shopTierOdds: (round) => (round >= 7 ? [0.45, 0.45, 0.1] : [1, 0, 0]),
+  tierPriceMultiplier: [1, 1.5, 2],
 }
 
 export const runContext: RunContext = {
