@@ -2820,3 +2820,74 @@ button:disabled:hover {
     margin-top: 8px;
   }
 }
+
+/* ── ship silhouette around the hold ──────────────────── */
+
+.ship-frame {
+  position: relative;
+  display: inline-block;
+}
+
+.ship-frame__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.ship-frame__hull {
+  fill: rgb(234 242 255 / 0.05);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.ship-frame__fin,
+.ship-frame__engine {
+  fill: rgb(234 242 255 / 0.04);
+  stroke: var(--ink-dim);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.ship-frame__line {
+  fill: none;
+  stroke: var(--ink-dim);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* the grid is the hold inside the ship: lighter contour */
+.ship-frame .hull-t {
+  border-top-color: var(--ink-dim);
+}
+.ship-frame .hull-r {
+  border-right-color: var(--ink-dim);
+}
+.ship-frame .hull-b {
+  border-bottom-color: var(--ink-dim);
+}
+.ship-frame .hull-l {
+  border-left-color: var(--ink-dim);
+}
+
+.ship-frame .hull-t,
+.ship-frame .hull-r,
+.ship-frame .hull-b,
+.ship-frame .hull-l {
+  border-style: dashed;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --cell: clamp(26px, 8vw, 38px);
+  }
+}
+
+.ship-frame .cell--filled {
+  border-style: solid;
+}

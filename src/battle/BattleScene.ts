@@ -8,6 +8,7 @@ import type {
 } from '../engine/index.ts'
 import { placedCells, rotateShape } from '../engine/index.ts'
 import { artSvg, moduleArt } from '../content/moduleArt.ts'
+import { silhouette } from '../content/ships.ts'
 import type { ModuleId } from '../content/modules.ts'
 
 /**
@@ -126,7 +127,13 @@ export class BattleScene {
       const data = this.shipsData[side]
       const gw = Math.max(...data.hull.map((c) => c.x)) + 1
       const gh = Math.max(...data.hull.map((c) => c.y)) + 1
-      const cell = Math.floor(Math.min((H * 0.72) / gh, (W * 0.3) / gw))
+      const sil = silhouette(gw, gh)
+      const cell = Math.floor(
+        Math.min(
+          (H * 0.78) / (gh + sil.pad.top + sil.pad.bottom),
+          (W * 0.36) / (gw + sil.pad.left + sil.pad.right),
+        ),
+      )
       const mirror = side === 'enemy'
       const root = new Container()
       const body = new Graphics()
@@ -173,8 +180,9 @@ export class BattleScene {
         moduleRects,
         center: { x: root.x + (gw * cell) / 2, y: root.y + (gh * cell) / 2 },
         radius: {
-          x: (gw * cell) / 2 + cell * 0.7,
-          y: (gh * cell) / 2 + cell * 0.5,
+          // the shield bubble wraps the whole silhouette, not just the hold
+          x: (gw * cell) / 2 + cell * 1.5,
+          y: (gh * cell) / 2 + cell * 1.0,
         },
       }
     }
@@ -654,7 +662,32 @@ function drawShip(
   // faint cells
   for (const c of data.hull) g.rect(lx(c.x) * cell, c.y * cell, cell, cell)
   g.stroke({ width: 0.5, color, alpha: 0.18 })
-  // hull contour
+  // FTL-style ship outline around the hold (nose towards the opponent)
+  const sil = silhouette(gw, Math.max(...data.hull.map((c) => c.y)) + 1)
+  const sx = (x: number) => (mirror ? gw - x : x) * cell
+  const poly = (pts: readonly (readonly [number, number])[]) =>
+    pts.flatMap(([x, y]) => [sx(x), y * cell])
+  for (const f of sil.fins) g.poly(poly(f)).fill({ color, alpha: 0.04 })
+  for (const f of sil.fins)
+    g.poly(poly(f)).stroke({ width: 1.5, color, alpha: 0.6 })
+  for (const e of sil.engines) {
+    const x0 = Math.min(sx(e.x), sx(e.x + e.w))
+    g.rect(x0, e.y * cell, e.w * cell, e.h * cell).stroke({
+      width: 1.5,
+      color,
+      alpha: 0.6,
+    })
+  }
+  g.poly(poly(sil.hull)).fill({ color, alpha: 0.05 })
+  g.poly(poly(sil.hull)).stroke({ width: 2.5, color, alpha: 0.95 })
+  for (const l of sil.lines) {
+    const [first, ...rest] = l
+    g.moveTo(sx(first![0]), first![1] * cell)
+    for (const [x, y] of rest) g.lineTo(sx(x), y * cell)
+  }
+  g.stroke({ width: 1.5, color, alpha: 0.6 })
+
+  // the hold contour, lighter
   for (const c of data.hull) {
     const x = lx(c.x) * cell
     const y = c.y * cell
@@ -667,7 +700,7 @@ function drawShip(
     if (left) g.moveTo(x, y).lineTo(x, y + cell)
     if (right) g.moveTo(x + cell, y).lineTo(x + cell, y + cell)
   }
-  g.stroke({ width: 2, color, alpha: 0.95 })
+  g.stroke({ width: 1, color, alpha: 0.45 })
 
   const tint = { weapon: 0xff8a66, shield: 0x78cdff, armor: color } as const
   for (const m of data.modules) {
