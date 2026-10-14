@@ -108,10 +108,6 @@ export function Shipyard({ run, dispatch }: Props) {
   const disabled = new Set(
     run.placed.filter((p) => isCracked(runContext, run, p)).map((p) => p.uid),
   )
-  const [reveal, setReveal] = useState<string | null>(null)
-  const revealItem = reveal
-    ? run.bench.find((b) => b.uid === reveal)
-    : undefined
 
   const update = useCallback((next: Drag | null) => {
     dragRef.current = next
@@ -217,12 +213,6 @@ export function Shipyard({ run, dispatch }: Props) {
     } else {
       flashError(uid)
     }
-  }
-
-  const openCrate = () => {
-    if (run.crates.length === 0) return
-    setReveal(`i${run.nextUid}`)
-    dispatch({ type: 'openCrate' })
   }
 
   const tap = (d: Drag) => {
@@ -468,13 +458,7 @@ export function Shipyard({ run, dispatch }: Props) {
                 </div>
               )
             })}
-            {run.crates.length > 0 && (
-              <button className="crate" onClick={openCrate}>
-                <span className="crate__icon">▣</span>
-                контейнер ×{run.crates.length} · вскрыть
-              </button>
-            )}
-            {run.bench.length === 0 && run.crates.length === 0 && (
+            {run.bench.length === 0 && (
               <p className="note">{dragging ? 'сюда — на склад' : 'пусто'}</p>
             )}
           </div>
@@ -671,29 +655,6 @@ export function Shipyard({ run, dispatch }: Props) {
         )}
       </div>
 
-      {revealItem && (
-        <div className="reveal" onClick={() => setReveal(null)}>
-          <div
-            className={`reveal__card reveal__card--t${revealItem.tier ?? 1}`}
-          >
-            <div className="reveal__title">из контейнера</div>
-            <ModuleArt
-              defId={revealItem.defId}
-              cell="56px"
-              grid
-              tier={revealItem.tier}
-            />
-            <div className="reveal__name">
-              {def(revealItem.defId).name}
-              {tierName(revealItem.tier)}
-            </div>
-            <div className="note">
-              {describeStats(itemStats(runContext, revealItem))}
-            </div>
-            <button>на склад</button>
-          </div>
-        </div>
-      )}
       {dragging && dragging.over?.type !== 'cell' && (
         <div
           className="drag-ghost"

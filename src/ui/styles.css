@@ -2037,3 +2037,253 @@ button:disabled:hover {
     flex-direction: column;
   }
 }
+
+/* ── crate opening (full screen) ──────────────────────── */
+
+.crate-screen {
+  --crate-light: #eaf2ff;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: var(--ink);
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgb(22 74 132 / 0.6),
+      rgb(6 22 46 / 0.96) 70%
+    ),
+    linear-gradient(var(--ink-ghost) 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(90deg, var(--ink-ghost) 1px, transparent 1px) 0 0 / 20px
+      20px,
+    var(--paper-deep);
+  animation: fade 0.25s;
+  user-select: none;
+}
+
+.crate-screen--t2 {
+  --crate-light: #a8dcff;
+}
+
+.crate-screen--t3 {
+  --crate-light: #ffd27a;
+}
+
+.crate-screen--idle {
+  cursor: pointer;
+}
+
+.crate-screen__head {
+  position: absolute;
+  top: 22px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.crate-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.crate-art {
+  position: relative;
+  z-index: 1;
+  width: min(62vw, 280px);
+  height: auto;
+  overflow: visible;
+}
+
+.crate-screen--idle .crate-art {
+  animation: bob 2.2s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-8px) rotate(-1deg);
+  }
+}
+
+.crate-art__seam {
+  stroke: transparent;
+}
+
+.crate-screen--opening .crate-art {
+  animation: rattle 2s cubic-bezier(0.5, 0, 1, 1) forwards;
+}
+
+@keyframes rattle {
+  0% {
+    transform: none;
+  }
+  10% {
+    transform: translate(-1px, 0) rotate(-0.5deg);
+  }
+  20% {
+    transform: translate(1px, -1px) rotate(0.5deg);
+  }
+  30% {
+    transform: translate(-2px, 1px) rotate(-1deg);
+  }
+  40% {
+    transform: translate(2px, -1px) rotate(1deg);
+  }
+  50% {
+    transform: translate(-3px, 1px) rotate(-1.5deg);
+  }
+  60% {
+    transform: translate(4px, -2px) rotate(2deg);
+  }
+  70% {
+    transform: translate(-5px, 2px) rotate(-2.5deg);
+  }
+  80% {
+    transform: translate(6px, -3px) rotate(3deg) scale(1.03);
+  }
+  90% {
+    transform: translate(-7px, 3px) rotate(-3deg) scale(1.06);
+  }
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+.crate-screen--opening .crate-art__seam {
+  animation: seam 2s ease-in forwards;
+}
+
+@keyframes seam {
+  0% {
+    stroke: transparent;
+  }
+  40% {
+    stroke: var(--crate-light);
+    filter: drop-shadow(0 0 2px var(--crate-light));
+  }
+  100% {
+    stroke: #fff;
+    filter: drop-shadow(0 0 14px var(--crate-light));
+  }
+}
+
+.crate-screen--opening .crate-art__lid {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lid 2s ease-in forwards;
+}
+
+@keyframes lid {
+  0%,
+  82% {
+    transform: none;
+  }
+  100% {
+    transform: translate(30px, -150px) rotate(-28deg);
+    opacity: 0;
+  }
+}
+
+.crate-glow {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crate-light), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.crate-screen--opening .crate-glow {
+  animation: glowup 2s ease-in forwards;
+}
+
+@keyframes glowup {
+  to {
+    opacity: 0.8;
+    width: 520px;
+    height: 520px;
+  }
+}
+
+.crate-glow--burst {
+  top: 38%;
+  animation: burst 0.9s ease-out forwards;
+}
+
+@keyframes burst {
+  0% {
+    opacity: 1;
+    width: 520px;
+    height: 520px;
+  }
+  100% {
+    opacity: 0.25;
+    width: 360px;
+    height: 360px;
+  }
+}
+
+.crate-screen__hint {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.crate-screen--idle .crate-screen__hint {
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.crate-reveal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.crate-reveal > *:not(.crate-glow) {
+  position: relative;
+  z-index: 1;
+}
+
+.crate-reveal .module-art {
+  color: var(--crate-light);
+}
+
+.crate-reveal__name {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.crate-reveal__stars {
+  color: var(--crate-light);
+}
+
+.crate-reveal .stamp {
+  margin: 8px 0 0;
+}
