@@ -15,13 +15,17 @@ import { Shipyard } from './Shipyard.tsx'
 import { Splash } from './Splash.tsx'
 import { Tutorial, type TutorialState } from './Tutorial.tsx'
 
+const freshRun = (): RunState =>
+  createRun(runContext, Math.floor(Math.random() * 2 ** 31))
+
+/** A run the player actually starts (counted in analytics). */
 const newRun = (): RunState => {
   track('run_start')
-  return createRun(runContext, Math.floor(Math.random() * 2 ** 31))
+  return freshRun()
 }
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v14', newRun)
+  const [run, setRun] = usePersistentState<RunState>('game.run.v14', freshRun)
   const [tut, setTut] = usePersistentState<TutorialState>('tutorial.v1', {
     on: true,
     done: [],
