@@ -4075,3 +4075,236 @@ button:disabled:hover {
     );
   }
 }
+
+/* ── title screen ─────────────────────────────────────── */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: max(24px, env(safe-area-inset-top)) 20px
+    max(30px, calc(env(safe-area-inset-bottom) + 14px));
+  background: var(--paper);
+  overflow: hidden;
+  user-select: none;
+}
+
+.splash__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--ink-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridIn 1.2s ease-out both;
+}
+
+@keyframes gridIn {
+  from {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+.splash__ship {
+  position: relative;
+  width: min(70vw, 340px);
+  height: auto;
+  overflow: visible;
+}
+
+.splash__ship polygon,
+.splash__ship polyline,
+.splash__ship rect {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: draw 1.4s ease-out 0.3s forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.splash__ship .ship-glyph__flame {
+  opacity: 0;
+  animation:
+    fadeIn 0.3s 1.6s forwards,
+    blink 0.15s steps(2) 1.9s infinite;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.splash__title {
+  position: relative;
+  margin: 0;
+  display: flex;
+  gap: 0.35em;
+  font-size: clamp(54px, 16vw, 96px);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.splash__title span {
+  opacity: 0;
+  animation: letterIn 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+@keyframes letterIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(1.4);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.splash__sub {
+  position: relative;
+  margin: 0;
+  color: var(--ink-dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 13px;
+  opacity: 0;
+  animation: fadeIn 0.5s 2.3s forwards;
+}
+
+.splash__menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  opacity: 0;
+  animation: fadeIn 0.5s 2.5s forwards;
+}
+
+.splash .splash__primary {
+  margin: 0;
+  font-size: 26px;
+  padding: 12px 40px 10px;
+}
+
+.splash__secondary {
+  font-size: 16px;
+  padding: 10px 24px;
+}
+
+.splash__check {
+  font-size: 15px;
+}
+
+/* tap skips the intro */
+.splash.is-skipped *,
+.splash.is-skipped *::before {
+  animation-delay: 0s !important;
+  animation-duration: 0.01s !important;
+}
+
+.splash.is-skipped .ship-glyph__flame {
+  animation: blink 0.15s steps(2) infinite !important;
+  opacity: 1;
+}
+
+/* ── tutorial hints ───────────────────────────────────── */
+
+.tut {
+  position: fixed;
+  z-index: 95;
+  left: 50%;
+  top: max(84px, calc(env(safe-area-inset-top) + 76px));
+  transform: translateX(-50%);
+  width: min(94vw, 460px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 2px solid #a8dcff;
+  box-shadow: 0 8px 26px rgb(6 22 46 / 0.6);
+  animation: pop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.tut__step {
+  font: 500 12px var(--font-mono);
+  color: #a8dcff;
+  padding-top: 2px;
+}
+
+.tut__text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.tut__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+}
+
+.tut__actions button {
+  padding: 5px 14px;
+}
+
+.tut-target {
+  z-index: 3;
+  outline: 3px solid #a8dcff !important;
+  outline-offset: 3px;
+  animation: tutPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes tutPulse {
+  50% {
+    outline-color: rgb(168 220 255 / 0.25);
+  }
+}
+
+@media (max-width: 760px) {
+  .tut {
+    top: auto;
+    bottom: max(30px, calc(env(safe-area-inset-bottom) + 14px));
+    padding: 8px 10px;
+  }
+
+  .tut__text {
+    font-size: 13.5px;
+  }
+
+  /* when the shop is the target, keep the hint at the top so it doesn't cover it */
+  .game:has(.shop.tut-target) .tut,
+  .game:has(.bench.tut-target) .tut {
+    bottom: auto;
+    top: max(78px, calc(env(safe-area-inset-top) + 70px));
+  }
+}
+
+.tut {
+  animation: tutIn 0.25s ease-out;
+}
+
+@keyframes tutIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

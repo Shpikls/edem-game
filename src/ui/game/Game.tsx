@@ -12,6 +12,8 @@ import { usePersistentState } from '../usePersistentState.ts'
 import { BattleView } from './BattleView.tsx'
 import { SalvageScreen } from './SalvageScreen.tsx'
 import { Shipyard } from './Shipyard.tsx'
+import { Splash } from './Splash.tsx'
+import { Tutorial, type TutorialState } from './Tutorial.tsx'
 
 const newRun = (): RunState => {
   track('run_start')
@@ -20,6 +22,15 @@ const newRun = (): RunState => {
 
 export function Game() {
   const [run, setRun] = usePersistentState<RunState>('game.run.v14', newRun)
+  const [tut, setTut] = usePersistentState<TutorialState>('tutorial.v1', {
+    on: true,
+    done: [],
+  })
+  // The title screen shows on every launch (session only).
+  const [splash, setSplash] = useState(true)
+  const hasSave =
+    run.phase !== 'over' &&
+    (run.round > 1 || run.placed.length > 0 || run.bench.length > 0)
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
   const dispatch = (action: RunAction) =>
@@ -34,8 +45,31 @@ export function Game() {
   const shown =
     run.phase === 'battle' && run.lastBattle ? run.lastBattle.before : run
 
+  if (splash)
+    return (
+      <Splash
+        hasSave={hasSave}
+        tutorialDefault={tut.on && tut.done.length === 0}
+        onContinue={() => setSplash(false)}
+        onStart={(withTutorial) => {
+          setTut(() => ({ on: withTutorial, done: [] }))
+          setRun(newRun())
+          setSplash(false)
+        }}
+      />
+    )
+
   return (
     <div className="game">
+      <Tutorial
+        run={run}
+        inBattle={run.phase === 'battle'}
+        salvage={
+          run.phase === 'shop' && (run.salvage.length > 0 || cratePending)
+        }
+        tut={tut}
+        setTut={setTut}
+      />
       <div className="hud">
         <div className="hud__stats">
           <span>
