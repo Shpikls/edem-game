@@ -11,6 +11,8 @@ node_modules
 dist
 dist-yandex
 edem-yandex.zip
+dist-vk
+edem-vk.zip
 dist-ssr
 *.local
 

@@ -45,7 +45,7 @@ function readTag(): string {
 }
 const tag = typeof window === 'undefined' ? '' : readTag()
 /** Sent with the session and every event. */
-const platform = import.meta.env.VITE_PLATFORM === 'yandex' ? 'yandex' : 'web'
+const platform = import.meta.env.VITE_PLATFORM || 'web'
 const meta: Record<string, string> = tag
   ? { build, platform, tag }
   : { build, platform }
