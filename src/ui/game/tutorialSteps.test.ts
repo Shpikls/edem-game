@@ -52,6 +52,22 @@ describe('tutorial steps', () => {
     expect(place.doneWhen?.(beforeSearch, yard)).toBe(true)
   })
 
+  test('a crack is pointed out right away; at a station — repair', () => {
+    const done = ['buy', 'fight', 'salvage', 'place']
+    const cracked = run({
+      round: 4,
+      station: false,
+      placed: [gun],
+      cracks: ['2,2'],
+      lastBattle: null,
+    })
+    expect(currentStep(on(done), cracked, yard)?.id).toBe('crack')
+    expect(
+      currentStep(on([...done, 'crack']), { ...cracked, station: true }, yard)
+        ?.id,
+    ).toBe('repair')
+  })
+
   test('steps complete when the player does the thing', () => {
     const buy = STEPS.find((s) => s.id === 'buy')!
     expect(buy.doneWhen?.(run(), yard)).toBe(false)

@@ -19,8 +19,8 @@ interface Ctx {
  */
 interface Step {
   id: string
-  /** Element to act on (the first visible match). */
-  target: string
+  /** Element to act on: the first visible match, selectors tried in order. */
+  target: string | string[]
   /** Drag destination; without it the finger taps. */
   to?: string
   /** 2–3 words; empty = the finger alone. */
@@ -70,6 +70,14 @@ export const STEPS: Step[] = [
       r.bench.length === 0 &&
       r.salvage.length === 0,
     autoDoneMs: 15_000,
+  },
+  {
+    id: 'crack',
+    // prefer a crack under a module: that's the one that matters
+    target: ['.cell--cracked.cell--filled', '.cell--cracked'],
+    label: 'трещина: модуль не стреляет',
+    when: (r, c) => inYard(c) && r.cracks.length > 0,
+    autoDoneMs: 6_000,
   },
   {
     id: 'repair',

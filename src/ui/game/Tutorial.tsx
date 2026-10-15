@@ -19,12 +19,13 @@ interface Box {
 }
 
 /** First visible element matching the selector, as a viewport box. */
-function locate(selector: string): Box | null {
-  for (const el of document.querySelectorAll(selector)) {
-    const r = el.getBoundingClientRect()
-    if (r.width > 0 && r.height > 0)
-      return { x: r.left, y: r.top, w: r.width, h: r.height }
-  }
+function locate(selector: string | string[]): Box | null {
+  for (const sel of typeof selector === 'string' ? [selector] : selector)
+    for (const el of document.querySelectorAll(sel)) {
+      const r = el.getBoundingClientRect()
+      if (r.width > 0 && r.height > 0)
+        return { x: r.left, y: r.top, w: r.width, h: r.height }
+    }
   return null
 }
 
@@ -56,12 +57,6 @@ export function Tutorial({
 
   const step = currentStep(tut, run, ctx)
 
-  useEffect(() => {
-    if (!step?.autoDoneMs) return
-    const t = window.setTimeout(() => complete(step.id), step.autoDoneMs)
-    return () => window.clearTimeout(t)
-  }, [step?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
   // Follow the target around (layout shifts, scrolling, animations).
   const [boxes, setBoxes] = useState<{
     id: string
@@ -91,6 +86,15 @@ export function Tutorial({
       window.clearInterval(t)
     }
   }, [step])
+
+  // Informational steps fade out after being on screen for a while
+  // (the clock runs only while the step is actually visible).
+  const visible = !!step && boxes?.id === step.id
+  useEffect(() => {
+    if (!visible || !step?.autoDoneMs) return
+    const t = window.setTimeout(() => complete(step.id), step.autoDoneMs)
+    return () => window.clearTimeout(t)
+  }, [visible, step?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real label width keeps it on screen.
   const labelRef = useRef<HTMLParagraphElement>(null)
