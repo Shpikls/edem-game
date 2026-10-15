@@ -154,7 +154,14 @@ function shop(s: RunState, st: Strategy, t: Tally): RunState {
           (o): o is { id: string; slot: number } =>
             !!o.id && offerPrice(ctx, o.id, s.shopTiers[o.slot]) <= s.gold,
         )
-        .map((o) => ({ ...o, w: st.want(o.id, s) }))
+        // any sensible player arms the ship before anything else
+        .map((o) => ({
+          ...o,
+          w:
+            weapons(s) === 0 && kind(o.id) === 'weapon'
+              ? 1000
+              : st.want(o.id, s),
+        }))
         .filter((o) => o.w > 0)
         .sort((a, b) => b.w - a.w)
       let bought = false

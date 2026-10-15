@@ -33,7 +33,7 @@ export const modules = {
     shape: parseShape(['###']),
     stats: {
       kind: 'weapon',
-      damage: 14,
+      damage: 16,
       damageType: 'kinetic',
       cooldownMs: 2_500,
     },
@@ -46,7 +46,7 @@ export const modules = {
     shape: parseShape(['##', '##']),
     stats: {
       kind: 'shield',
-      capacity: 30,
+      capacity: 26,
       regenAmount: 3,
       regenIntervalMs: 1_000,
     },
@@ -82,9 +82,9 @@ export const modules = {
     // Flies under shields; armor counts double against it.
     stats: {
       kind: 'weapon',
-      damage: 20,
+      damage: 26,
       damageType: 'explosive',
-      cooldownMs: 4_000,
+      cooldownMs: 3_200,
     },
   },
 } satisfies Record<string, ModuleDef>

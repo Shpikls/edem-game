@@ -3,6 +3,10 @@ import { battleRules } from './battleRules.ts'
 import { moduleList } from './modules.ts'
 import { frigate } from './ships.ts'
 
+// By enemy level 1…10 (level = wins + 1). Levels 1–2: one weapon, thin hull.
+const ENEMY_BUDGET = [3, 4, 10, 14, 17, 20, 22, 24, 26, 27]
+const ENEMY_HULL = [65, 80, 110, 118, 126, 134, 142, 150, 156, 162]
+
 // First-pass numbers, tune by playing.
 export const runConfig: RunConfig = {
   rounds: 10,
@@ -17,8 +21,10 @@ export const runConfig: RunConfig = {
   // Roughly what the player could have spent by this round, minus a bit.
   // By level (= wins + 1). Levels 1–2 are a gentle ramp: one weapon, thin hull —
   // a single bought weapon carries you to the second station.
-  enemyBudget: (level) => (level <= 2 ? 3 : 4 + 3 * (level - 1)),
-  enemyHullHp: (level) => (level <= 2 ? 50 + 10 * level : 80 + 8 * level),
+  // Steeper through the middle (missions 3–7), flatter at the end.
+  enemyBudget: (level) =>
+    ENEMY_BUDGET[Math.min(level, ENEMY_BUDGET.length) - 1]!,
+  enemyHullHp: (level) => ENEMY_HULL[Math.min(level, ENEMY_HULL.length) - 1]!,
   // The ship has one life and two emergency jumps.
   jumpCharges: 2,
   tierMultiplier: [1, 1.5, 2],
@@ -28,7 +34,7 @@ export const runConfig: RunConfig = {
     const p3 = Math.min(0.25, Math.max(0, (round - 4) * 0.045))
     return [1 - p2 - p3, p2, p3]
   },
-  damagePerCrack: 30,
+  damagePerCrack: 40,
   maxCracksPerBattle: 2,
   cracksFromRound: 3,
   firstShopWeapons: 2,
