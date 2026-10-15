@@ -45,10 +45,24 @@ function readTag(): string {
 }
 const tag = typeof window === 'undefined' ? '' : readTag()
 /** Sent with the session and every event. */
-const platform = import.meta.env.VITE_PLATFORM || 'web'
-const meta: Record<string, string> = tag
-  ? { build, platform, tag }
-  : { build, platform }
+/**
+ * Where the game is played: web | yandex | vk | ok. The VK build also runs in
+ * Odnoklassniki — VK passes vk_client=ok there; vk_platform tells the client
+ * (mobile_android, mobile_iphone, mobile_web, desktop_web).
+ */
+function hostInfo(): Record<string, string> {
+  const build = import.meta.env.VITE_PLATFORM || 'web'
+  if (typeof location === 'undefined') return { platform: build }
+  const q = new URLSearchParams(location.search)
+  const platform = build === 'vk' && q.get('vk_client') === 'ok' ? 'ok' : build
+  const client = q.get('vk_platform')
+  return client ? { platform, client } : { platform }
+}
+const meta: Record<string, string> = {
+  build,
+  ...hostInfo(),
+  ...(tag ? { tag } : {}),
+}
 
 export function initAnalytics(): void {
   if (typeof window === 'undefined') return
