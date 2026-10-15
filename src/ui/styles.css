@@ -4229,88 +4229,6 @@ button:disabled:hover {
   opacity: 1;
 }
 
-/* ── tutorial hints ───────────────────────────────────── */
-
-.tut {
-  position: fixed;
-  z-index: 95;
-  left: 50%;
-  top: max(84px, calc(env(safe-area-inset-top) + 76px));
-  transform: translateX(-50%);
-  width: min(94vw, 460px);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 10px;
-  padding: 10px 12px;
-  background: var(--paper);
-  border: 2px solid #a8dcff;
-  box-shadow: 0 8px 26px rgb(6 22 46 / 0.6);
-  animation: pop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
-}
-
-.tut__step {
-  font: 500 12px var(--font-mono);
-  color: #a8dcff;
-  padding-top: 2px;
-}
-
-.tut__text {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.3;
-}
-
-.tut__actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 14px;
-}
-
-.tut__actions button {
-  padding: 5px 14px;
-}
-
-.tut-target {
-  z-index: 3;
-  outline: 3px solid #a8dcff !important;
-  outline-offset: 3px;
-  animation: tutPulse 1.2s ease-in-out infinite;
-}
-
-@keyframes tutPulse {
-  50% {
-    outline-color: rgb(168 220 255 / 0.25);
-  }
-}
-
-@media (max-width: 760px) {
-  .tut {
-    /* top: the shop and the bench at the bottom stay free to use */
-    padding: 8px 10px;
-  }
-
-  .tut__text {
-    font-size: 13.5px;
-  }
-}
-
-.tut {
-  animation: tutIn 0.25s ease-out;
-}
-
-@keyframes tutIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -8px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
-
 /* the jump note spans the whole shipyard grid instead of taking a column */
 .shipyard > .jump-note {
   grid-column: 1 / -1;
@@ -4702,11 +4620,130 @@ button.is-blocked {
   opacity: 0.45;
 }
 
-/* hints never block the game: taps and drags pass through, only the buttons catch */
-.tut {
-  pointer-events: none;
+/* ── tutorial coach: highlight + finger + 2–3 words ───── */
+
+.coach {
+  position: fixed;
+  inset: 0;
+  z-index: 97;
+  pointer-events: none; /* never blocks the game */
 }
 
-.tut__actions button {
-  pointer-events: auto;
+.coach__ring {
+  position: fixed;
+  border: 2px dashed #a8dcff;
+  box-shadow:
+    0 0 0 3px rgb(168 220 255 / 0.18),
+    0 0 18px rgb(168 220 255 / 0.45);
+  animation: coachRing 1.1s ease-in-out infinite;
+  transition:
+    left 0.2s,
+    top 0.2s,
+    width 0.2s,
+    height 0.2s;
+}
+
+@keyframes coachRing {
+  50% {
+    box-shadow:
+      0 0 0 7px rgb(168 220 255 / 0.08),
+      0 0 26px rgb(168 220 255 / 0.6);
+  }
+}
+
+.coach__finger {
+  position: fixed;
+  width: 46px;
+  height: 46px;
+  /* fingertip (11.5, 5 of 24) on the target point */
+  margin: -10px 0 0 -22px;
+  transform-origin: 22px 10px;
+  filter: drop-shadow(0 3px 6px rgb(6 22 46 / 0.7));
+}
+
+.coach__finger svg {
+  width: 100%;
+  height: 100%;
+  fill: #fff;
+  stroke: var(--paper-deep);
+  stroke-width: 0.6;
+}
+
+/* tap: press, release, pause */
+.coach__finger:not(.coach__finger--drag) {
+  animation: coachTap 1.4s ease-in-out infinite;
+}
+
+@keyframes coachTap {
+  0%,
+  100% {
+    transform: translate(10px, 14px);
+    opacity: 0.85;
+  }
+  35% {
+    transform: translate(0, 0) scale(0.88);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(0, 0) scale(0.88);
+  }
+}
+
+/* drag: press on the source, carry to the destination, fade, repeat */
+.coach__finger--drag {
+  animation: coachDrag 2.2s ease-in-out infinite;
+}
+
+@keyframes coachDrag {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    transform: translate(0, 0) scale(0.88);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(var(--dx), var(--dy)) scale(0.88);
+    opacity: 1;
+  }
+  85%,
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+
+.coach__label {
+  position: fixed;
+  margin: 0;
+  padding: 5px 12px 4px;
+  transform: translate(-50%, -100%);
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper-deep);
+  background: #a8dcff;
+  box-shadow: 0 4px 14px rgb(6 22 46 / 0.5);
+  animation: coachLabel 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.coach__label.is-below {
+  transform: translate(-50%, 0);
+}
+
+@keyframes coachLabel {
+  from {
+    opacity: 0;
+    scale: 0.7;
+  }
+}
+
+/* the salvage screen sits above the game: keep the coach above it */
+.coach {
+  z-index: 140;
 }
