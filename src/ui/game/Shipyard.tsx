@@ -19,7 +19,7 @@ import {
   type RunAction,
   type RunState,
 } from '../../engine/index.ts'
-import { Sheet } from '../sandbox/Sheet.tsx'
+import { Sheet } from './Sheet.tsx'
 import { def, describeStats } from './describe.ts'
 import {
   toPlacement,

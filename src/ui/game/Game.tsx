@@ -6,20 +6,28 @@ import {
   type RunAction,
   type RunState,
 } from '../../engine/index.ts'
-import { Sheet } from '../sandbox/Sheet.tsx'
+import { Sheet } from './Sheet.tsx'
+import { track } from '../analytics.ts'
 import { usePersistentState } from '../usePersistentState.ts'
 import { BattleView } from './BattleView.tsx'
 import { SalvageScreen } from './SalvageScreen.tsx'
 import { Shipyard } from './Shipyard.tsx'
 
-const newRun = () => createRun(runContext, Math.floor(Math.random() * 2 ** 31))
+const newRun = (): RunState => {
+  track('run_start')
+  return createRun(runContext, Math.floor(Math.random() * 2 ** 31))
+}
 
 export function Game() {
-  const [run, setRun] = usePersistentState<RunState>('game.run.v14', newRun())
+  const [run, setRun] = usePersistentState<RunState>('game.run.v14', newRun)
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
   const dispatch = (action: RunAction) =>
-    setRun((s) => reduceRun(runContext, s, action))
+    setRun((s) => {
+      const next = reduceRun(runContext, s, action)
+      if (next !== s) report(s, next, action)
+      return next
+    })
   const { config } = runContext
   // During a battle the outcome isn't final yet (the player may still jump out):
   // show the values from before the fight until "Next".
@@ -100,4 +108,36 @@ export function Game() {
       )}
     </div>
   )
+}
+
+/** Sends the interesting transitions to analytics. */
+function report(prev: RunState, next: RunState, action: RunAction) {
+  if (action.type === 'fight' && next.lastBattle) {
+    const b = next.lastBattle
+    track(
+      b.result.winner === 'player'
+        ? 'battle_win'
+        : b.autoJump
+          ? 'battle_jump'
+          : 'battle_lost',
+      {
+        round: prev.round,
+        seconds: Math.round(b.result.durationMs / 1000),
+        modules: prev.placed.length,
+      },
+    )
+  }
+  if (action.type === 'buy')
+    track('buy', { round: prev.round, module: prev.shop[action.slot] })
+  if (action.type === 'repair' || action.type === 'repairAll')
+    track('repair', {
+      round: prev.round,
+      cells: prev.cracks.length - next.cracks.length,
+    })
+  if (next.phase === 'over' && prev.phase !== 'over')
+    track(next.lives > 0 ? 'run_won' : 'run_lost', {
+      round: next.round,
+      wins: next.wins,
+      jumpsLeft: next.jumps,
+    })
 }

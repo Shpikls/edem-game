@@ -5,6 +5,7 @@ import '@fontsource/barlow-condensed/500.css'
 import '@fontsource/barlow-condensed/600.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
+import { initAnalytics } from './ui/analytics.ts'
 import { App } from './ui/App.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -18,3 +19,5 @@ const resetScroll = () => window.scrollTo(0, 0)
 window.addEventListener('resize', resetScroll)
 window.addEventListener('orientationchange', resetScroll)
 resetScroll()
+
+initAnalytics()

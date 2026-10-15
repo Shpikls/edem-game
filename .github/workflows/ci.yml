@@ -27,6 +27,9 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+        env:
+          # Yandex Metrika counter id (repo variable YM_ID); empty = no analytics
+          VITE_YM_ID: ${{ vars.YM_ID }}
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:

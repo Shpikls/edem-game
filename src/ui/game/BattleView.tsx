@@ -8,9 +8,9 @@ import {
   type RunState,
   type Side,
 } from '../../engine/index.ts'
-import { Sheet } from '../sandbox/Sheet.tsx'
+import { Sheet } from './Sheet.tsx'
 import { BattleEnd } from './BattleEnd.tsx'
-import { formatEvent } from '../sandbox/formatEvent.ts'
+import { formatEvent } from './formatEvent.ts'
 import { def, engineLabel, shieldMax } from './describe.ts'
 
 interface Props {
