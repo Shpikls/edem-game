@@ -4706,7 +4706,6 @@ button:disabled:hover {
   filter: grayscale(0.6);
 }
 
-button.is-warning {
-  color: var(--pencil-red);
-  border-color: var(--pencil-red);
+button.is-blocked {
+  opacity: 0.45;
 }

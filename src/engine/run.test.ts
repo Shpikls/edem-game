@@ -4,6 +4,7 @@ import {
   buildShip,
   createRun,
   reduceRun,
+  rerollLocked,
   type RunAction,
   type RunContext,
   type RunState,
@@ -420,4 +421,31 @@ test('repair all fixes cracks under modules first when gold is short', () => {
   s = { ...s, cracks: ['0,0', '2,0', '1,1'], gold: 2 } // gun sits on 1,1
   s = reduceRun(ctx, s, { type: 'repairAll' })
   expect(s.cracks).toEqual(['0,0', '2,0'])
+})
+
+describe('reroll lock (no weapon, not enough gold for one)', () => {
+  // cheapest weapon in the test catalog: 'gun' for 3, a reroll costs 1
+  const base = () => createRun(ctx, 3)
+  const gun = { uid: 'g', defId: 'gun' }
+
+  test('an unarmed ship cannot reroll below the cheapest weapon', () => {
+    const s = { ...base(), gold: 3 }
+    expect(rerollLocked(ctx, s)).toBe(true)
+    expect(reduceRun(ctx, s, { type: 'reroll' })).toBe(s)
+  })
+
+  test('enough gold left, a weapon owned, or a free reroll: allowed', () => {
+    expect(rerollLocked(ctx, { ...base(), gold: 4 })).toBe(false)
+    expect(rerollLocked(ctx, { ...base(), gold: 3, bench: [gun] })).toBe(false)
+    expect(
+      rerollLocked(ctx, {
+        ...base(),
+        gold: 3,
+        placed: [{ ...gun, x: 0, y: 0, rotation: 0 }],
+      }),
+    ).toBe(false)
+    expect(rerollLocked(ctx, { ...base(), gold: 0, freeRerolls: 1 })).toBe(
+      false,
+    )
+  })
 })

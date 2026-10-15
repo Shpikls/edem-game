@@ -264,6 +264,23 @@ export function isCracked(
   return placedCells(toPlacement(ctx, p)).some((c) => cracks.has(cellKey(c)))
 }
 
+/**
+ * A paid reroll that would leave a ship with no weapon (on the hull or the
+ * bench) unable to buy even the cheapest one is not allowed: it soft-locks the
+ * run into an unarmed fight.
+ */
+export function rerollLocked(ctx: RunContext, state: RunState): boolean {
+  if (state.freeRerolls > 0) return false
+  const isWeapon = (defId: string) =>
+    ctx.catalog.find((c) => c.id === defId)?.stats.kind === 'weapon'
+  if ([...state.placed, ...state.bench].some((i) => isWeapon(i.defId)))
+    return false
+  const cheapest = Math.min(
+    ...ctx.catalog.filter((c) => c.stats.kind === 'weapon').map((c) => c.price),
+  )
+  return state.gold - ctx.config.rerollCost < cheapest
+}
+
 function rollShop(
   ctx: RunContext,
   rngState: number,
@@ -457,6 +474,7 @@ export function reduceRun(
     case 'reroll': {
       const free = state.freeRerolls > 0
       if (!free && state.gold < ctx.config.rerollCost) return state
+      if (rerollLocked(ctx, state)) return state
       const shop = rollShop(ctx, state.rngState, state.round)
       return {
         ...state,

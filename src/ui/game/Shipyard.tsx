@@ -9,6 +9,7 @@ import {
 import { runContext } from '../../content/run.ts'
 import {
   isCracked,
+  rerollLocked,
   repairOrder,
   isStationRound,
   offerPrice,
@@ -28,7 +29,7 @@ import {
 } from './gridHelpers.ts'
 import { HullGrid } from './HullGrid.tsx'
 import { sfx } from '../sound.ts'
-import { rerollNeedsConfirm } from './readiness.ts'
+import { track } from '../analytics.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import {
   firstFit,
@@ -147,22 +148,16 @@ export function Shipyard({ run, dispatch }: Props) {
   const [repairOpen, setRepairOpen] = useState(false)
   const label = labels(run)
   const { config, hull: fullHull } = runContext
-  // A reroll that would leave an unarmed ship broke takes a second tap.
-  const [rerollArmed, setRerollArmed] = useState(false)
-  const needsConfirm = rerollNeedsConfirm(run)
+  // No weapon anywhere and a reroll would leave too little for one: locked.
+  const locked = rerollLocked(runContext, run)
+  const [lockNotice, setLockNotice] = useState(false)
   const reroll = () => {
-    if (needsConfirm && !rerollArmed) {
-      sfx('error')
-      setRerollArmed(true)
-      return
-    }
-    setRerollArmed(false)
-    dispatch({ type: 'reroll' })
+    if (!locked) return dispatch({ type: 'reroll' })
+    sfx('error')
+    track('reroll_blocked', { round: run.round, gold: run.gold })
+    setLockNotice(true)
+    window.setTimeout(() => setLockNotice(false), 3000)
   }
-  const rerollWarning =
-    needsConfirm && rerollArmed
-      ? `точно? останется ${run.gold - config.rerollCost} зол. — на оружие не хватит`
-      : null
   const cracks = new Set(run.cracks)
   // Logic works on intact cells only; the grid still draws the full hull.
   const hull = fullHull.filter((c) => !cracks.has(`${c.x},${c.y}`))
@@ -755,25 +750,26 @@ export function Shipyard({ run, dispatch }: Props) {
               <span className="shop-aside">
                 <span className="gold">{run.gold} зол.</span>
                 <button
-                  className={`shop__reroll-mini ${rerollWarning ? 'is-warning' : ''}`}
+                  className={`shop__reroll-mini ${locked ? 'is-blocked' : ''}`}
                   disabled={!freeReroll && run.gold < config.rerollCost}
+                  aria-disabled={locked}
                   onClick={reroll}
                   title={`обновить · ${config.rerollCost} зол.`}
                 >
-                  ⟳{' '}
-                  {rerollWarning
-                    ? 'точно?'
-                    : freeReroll
-                      ? 'страховка'
-                      : config.rerollCost}
+                  ⟳ {freeReroll ? 'страховка' : config.rerollCost}
                 </button>
               </span>
             }
             className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
           >
-            {rerollWarning && (
-              <p className="hud-notice" role="alert">
-                {rerollWarning}
+            {lockNotice && locked && (
+              <p
+                className="hud-notice"
+                role="alert"
+                onClick={() => setLockNotice(false)}
+              >
+                Обновить нельзя: не останется денег на оружие. Сначала купи
+                оружие.
               </p>
             )}
             <div data-drop="sell">
@@ -839,12 +835,15 @@ export function Shipyard({ run, dispatch }: Props) {
               </div>
               <div className="add-row shop__actions">
                 <button
-                  className={rerollWarning ? 'is-warning' : ''}
+                  className={locked ? 'is-blocked' : ''}
                   disabled={!freeReroll && run.gold < config.rerollCost}
+                  aria-disabled={locked}
                   onClick={reroll}
                 >
-                  {rerollWarning ??
-                    `обновить · ${freeReroll ? 'за счёт страховки' : `${config.rerollCost} зол.`}`}
+                  обновить ·{' '}
+                  {freeReroll
+                    ? 'за счёт страховки'
+                    : `${config.rerollCost} зол.`}
                 </button>
               </div>
               {ownedUid && dragging && (
