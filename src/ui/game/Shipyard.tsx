@@ -89,6 +89,15 @@ interface BenchSwipe {
 
 let flingFrame = 0
 
+/** A finger wobbles: a short move that doesn't end on a hull cell is still a tap. */
+const SLOPPY_TAP_PX = 30
+function isSloppyTap(d: {
+  start: { x: number; y: number }
+  pos: { x: number; y: number }
+}): boolean {
+  return Math.hypot(d.pos.x - d.start.x, d.pos.y - d.start.y) < SLOPPY_TAP_PX
+}
+
 /** Keeps the strip gliding after a quick swipe, slowing down. */
 function fling(b: BenchSwipe) {
   const recent = b.samples.filter((p) => p.t >= b.samples.at(-1)!.t - 90)
@@ -410,11 +419,24 @@ export function Shipyard({ run, dispatch }: Props) {
       update(null)
       if (!d) return
       if (d.bench?.scrolling) fling(d.bench)
-      else if (d.moved) dropRef.current(d)
+      // a wobbly tap (short move, not onto a hull cell) is still a tap
+      else if (d.moved && !(isSloppyTap(d) && d.over?.type !== 'cell'))
+        dropRef.current(d)
       else tapRef.current(d)
     }
-    // Cancelled by the system: no tap, no drop.
-    const onCancel = () => update(null)
+    // Some browsers (Firefox on Android) cancel the pointer mid-drag: a drag in
+    // progress still lands where the finger was; anything else is dropped.
+    const onCancel = () => {
+      const d = dragRef.current
+      update(null)
+      if (!d) return
+      if (d.bench?.scrolling) fling(d.bench)
+      else if (d.moved) dropRef.current(d)
+    }
+    // While dragging, the page must not pan: otherwise the browser takes the
+    // touch over and cancels the pointer.
+    const noPan = (e: TouchEvent) => e.preventDefault()
+    window.addEventListener('touchmove', noPan, { passive: false })
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
@@ -422,6 +444,7 @@ export function Shipyard({ run, dispatch }: Props) {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
+      window.removeEventListener('touchmove', noPan)
     }
   }, [drag === null, update]) // eslint-disable-line react-hooks/exhaustive-deps
 
