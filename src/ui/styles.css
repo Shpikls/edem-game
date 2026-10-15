@@ -4308,3 +4308,8 @@ button:disabled:hover {
     transform: translate(-50%, 0);
   }
 }
+
+/* the jump note spans the whole shipyard grid instead of taking a column */
+.shipyard > .jump-note {
+  grid-column: 1 / -1;
+}
