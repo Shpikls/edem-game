@@ -6,7 +6,7 @@ import {
   type RunAction,
   type RunState,
 } from '../../engine/index.ts'
-import { RunOver } from './RunOver.tsx'
+import { RunOver, RUN_STARTED_KEY } from './RunOver.tsx'
 import { Settings } from './Settings.tsx'
 import { actionSounds } from './actionSounds.ts'
 import { track } from '../analytics.ts'
@@ -24,6 +24,11 @@ const freshRun = (): RunState =>
 /** A run the player actually starts (counted in analytics). */
 const newRun = (): RunState => {
   track('run_start')
+  try {
+    localStorage.setItem(RUN_STARTED_KEY, String(Date.now()))
+  } catch {
+    /* no run timer */
+  }
   return freshRun()
 }
 

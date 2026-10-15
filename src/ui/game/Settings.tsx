@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { track } from '../analytics.ts'
 import {
   getVolume,
@@ -21,6 +21,8 @@ export function Settings({
 }) {
   const muted = useSyncExternalStore(onSoundChange, isMuted)
   const volume = useSyncExternalStore(onSoundChange, getVolume)
+  // Restart asks inside the panel: native confirm() is ugly and blocked in some iframes.
+  const [confirming, setConfirming] = useState(false)
   return (
     <div className="settings" onClick={onClose}>
       <section
@@ -96,17 +98,28 @@ export function Settings({
 
         <div className="settings__row">
           <span className="settings__label">забег</span>
-          <button
-            className="settings__danger"
-            onClick={() => {
-              if (confirm('Начать новый забег? Текущий пропадёт.')) {
-                onNewRun()
-                onClose()
-              }
-            }}
-          >
-            ⟲ начать заново
-          </button>
+          {confirming ? (
+            <div className="settings__confirm">
+              <p>Текущий забег пропадёт. Точно?</p>
+              <button
+                className="settings__yes"
+                onClick={() => {
+                  onNewRun()
+                  onClose()
+                }}
+              >
+                да, заново
+              </button>
+              <button onClick={() => setConfirming(false)}>отмена</button>
+            </div>
+          ) : (
+            <button
+              className="settings__danger"
+              onClick={() => setConfirming(true)}
+            >
+              ⟲ начать заново
+            </button>
+          )}
         </div>
 
         <p className="settings__build">EDEM · сборка {__BUILD__}</p>

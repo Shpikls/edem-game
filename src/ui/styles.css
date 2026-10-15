@@ -4402,6 +4402,26 @@ button:disabled:hover {
   font: 500 14px var(--font-mono);
 }
 
+.settings__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings__confirm p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 14px;
+  color: var(--pencil-red);
+}
+
+.settings__row .settings__yes {
+  background: var(--pencil-red);
+  border-color: var(--pencil-red);
+  color: var(--paper-deep);
+}
+
 .settings__danger {
   color: var(--pencil-red);
   border-color: var(--pencil-red);
@@ -4475,35 +4495,83 @@ button:disabled:hover {
   animation: gridIn 1s ease-out both;
 }
 
-.runover__kicker {
+.runover__title {
   margin: 0;
-  white-space: nowrap;
-  font-size: 12px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--ink-dim);
-  animation: fadeIn 0.4s both;
-}
-
-.runover__stamp {
-  font-size: clamp(26px, min(9vw, 5.6svh), 56px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: clamp(34px, min(11vw, 7svh), 72px);
   font-weight: 600;
-  letter-spacing: 0.16em;
   line-height: 1.05;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--end);
-  border: 5px double var(--end);
-  padding: 8px 22px 6px;
-  transform: rotate(-3deg);
-  background: rgb(16 57 106 / 0.7);
-  box-shadow: 0 0 40px rgb(0 0 0 / 0.25);
-  animation: runStamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) 0.15s both;
+  text-shadow: 0 0 24px rgb(0 0 0 / 0.25);
 }
 
-@keyframes runStamp {
-  from {
+.runover__title {
+  column-gap: 0.4em;
+}
+
+.runover__word {
+  white-space: nowrap;
+}
+
+.runover__word span {
+  display: inline-block;
+  animation: letterIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.runover__sub {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  animation: fadeIn 0.4s 0.7s both;
+}
+
+/* victory: blueprint "fireworks" — crosshair sparks that burst and fade */
+.runover__sparks {
+  position: absolute !important;
+  inset: 0;
+  pointer-events: none;
+}
+
+.runover__sparks i {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  opacity: 0;
+  background:
+    linear-gradient(var(--end), var(--end)) center / 2px 100% no-repeat,
+    linear-gradient(var(--end), var(--end)) center / 100% 2px no-repeat;
+  border-radius: 50%;
+  animation: spark 2.1s ease-out infinite;
+}
+
+.runover__sparks i:nth-child(3n) {
+  --end: var(--pencil-amber);
+}
+
+.runover__sparks i:nth-child(3n + 1) {
+  --end: var(--ink);
+}
+
+@keyframes spark {
+  0% {
     opacity: 0;
-    transform: rotate(-3deg) scale(2.2);
+    transform: scale(0.1) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.4) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
   }
 }
 
