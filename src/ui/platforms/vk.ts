@@ -30,6 +30,16 @@ export async function createVk(
   /** What VK already holds: only changed chunks are written. */
   const sent = new Map<string, string>()
 
+  const available = async (format: 'interstitial' | 'reward') => {
+    try {
+      return (
+        await bridge.send('VKWebAppCheckNativeAds', { ad_format: format })
+      ).result
+    } catch {
+      return false
+    }
+  }
+
   const ad = async (format: 'interstitial' | 'reward'): Promise<boolean> => {
     try {
       const check = await bridge.send('VKWebAppCheckNativeAds', {
@@ -84,5 +94,6 @@ export async function createVk(
       await ad('interstitial')
     },
     rewardedAd: () => ad('reward'),
+    rewardedReady: () => available('reward'),
   }
 }

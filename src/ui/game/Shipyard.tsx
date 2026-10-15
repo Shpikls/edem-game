@@ -30,7 +30,7 @@ import {
 import { HullGrid } from './HullGrid.tsx'
 import { sfx } from '../sound.ts'
 import { track } from '../analytics.ts'
-import { adsAvailable, showRewardedAd } from '../platform.ts'
+import { rewardedReady, showRewardedAd } from '../platform.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import {
   centerFit,
@@ -162,8 +162,16 @@ export function Shipyard({ run, dispatch }: Props) {
   // No weapon anywhere and a reroll would leave too little for one: locked.
   const locked = rerollLocked(runContext, run)
   const [lockNotice, setLockNotice] = useState(false)
-  // One ad-paid reroll per mission.
+  // One ad-paid reroll per mission, offered only when the host has an ad.
   const [adRound, setAdRound] = useState<number | null>(null)
+  const [adReady, setAdReady] = useState(false)
+  useEffect(() => {
+    let live = true
+    void rewardedReady().then((ok) => live && setAdReady(ok))
+    return () => {
+      live = false
+    }
+  }, [run.round])
   const reroll = () => {
     if (!locked) return dispatch({ type: 'reroll' })
     sfx('error')
@@ -799,7 +807,7 @@ export function Shipyard({ run, dispatch }: Props) {
                 >
                   ⟳ {freeReroll ? 'страховка' : config.rerollCost}
                 </button>
-                {adsAvailable() && adRound !== run.round && (
+                {adReady && adRound !== run.round && (
                   <button
                     className="shop__ad-reroll"
                     title="посмотреть рекламу — обновить магазин бесплатно"

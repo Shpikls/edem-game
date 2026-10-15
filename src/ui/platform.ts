@@ -111,6 +111,11 @@ export function showFullscreenAd(): Promise<void> {
   return host ? host.fullscreenAd() : Promise.resolve()
 }
 
+/** Whether to offer a rewarded video at all (the host has one to show). */
+export function rewardedReady(): Promise<boolean> {
+  return host ? host.rewardedReady() : Promise.resolve(false)
+}
+
 /** Rewarded video; true when the player earned the reward. */
 export function showRewardedAd(): Promise<boolean> {
   return host ? host.rewardedAd() : Promise.resolve(false)

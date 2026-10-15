@@ -71,6 +71,8 @@ export async function createYandex(
           },
         })
       }),
+    // Yandex has no availability check; the platform handles a missing fill.
+    rewardedReady: async () => true,
     rewardedAd: () =>
       new Promise((resolve) => {
         let rewarded = false

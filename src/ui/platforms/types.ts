@@ -12,6 +12,8 @@ export interface PlatformAdapter {
   fullscreenAd(): Promise<void>
   /** Rewarded video; true when the reward is earned. */
   rewardedAd(): Promise<boolean>
+  /** Whether a rewarded video can be shown right now (to show the offer at all). */
+  rewardedReady(): Promise<boolean>
 }
 
 /** Platform overlays (ads, app hidden) pause the game through this. */
