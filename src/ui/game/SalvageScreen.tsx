@@ -4,6 +4,7 @@ import { itemStats, type RunAction, type RunState } from '../../engine/index.ts'
 import { def, describeStats } from './describe.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import { ShipGlyph } from './ShipGlyph.tsx'
+import { sfx } from '../sound.ts'
 
 const SCAN_MS = 3500
 /** Warp transition back to the shipyard after the last wreck. */
@@ -47,6 +48,11 @@ export function SalvageScreen({
   }
 
   useEffect(() => {
+    if (stage === 'reveal') sfx('found', tier)
+    if (stage === 'leaving') sfx('warp')
+  }, [stage]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (stage !== 'scanning' && stage !== 'leaving') return
     const t = window.setTimeout(
       () => (stage === 'scanning' ? setStage('reveal') : finish()),
@@ -61,6 +67,7 @@ export function SalvageScreen({
     setUid(`i${run.nextUid}`)
     onSearch()
     dispatch({ type: 'searchWreck' })
+    sfx('scan')
     setStage('scanning')
   }
 

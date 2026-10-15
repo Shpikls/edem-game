@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { runContext } from '../../content/run.ts'
 import {
   createRun,
@@ -8,6 +8,7 @@ import {
 } from '../../engine/index.ts'
 import { Sheet } from './Sheet.tsx'
 import { track } from '../analytics.ts'
+import { isMuted, onMuteChange, setMuted, sfx } from '../sound.ts'
 import { usePersistentState } from '../usePersistentState.ts'
 import { BattleView } from './BattleView.tsx'
 import { SalvageScreen } from './SalvageScreen.tsx'
@@ -37,12 +38,14 @@ export function Game() {
     (run.round > 1 || run.placed.length > 0 || run.bench.length > 0)
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
-  const dispatch = (action: RunAction) =>
+  const dispatch = (action: RunAction) => {
+    actionSound(run, reduceRun(runContext, run, action), action)
     setRun((s) => {
       const next = reduceRun(runContext, s, action)
       if (next !== s) report(s, next, action)
       return next
     })
+  }
   const { config } = runContext
   // During a battle the outcome isn't final yet (the player may still jump out):
   // show the values from before the fight until "Next".
@@ -107,6 +110,7 @@ export function Game() {
           >
             ⟲
           </button>
+          <SoundToggle />
         </div>
         {run.phase === 'shop' && (
           <button
@@ -150,6 +154,57 @@ export function Game() {
       )}
     </div>
   )
+}
+
+function SoundToggle() {
+  const muted = useSyncExternalStore(onMuteChange, isMuted)
+  return (
+    <button
+      className="link-button sound-toggle"
+      title={muted ? 'включить звук' : 'выключить звук'}
+      aria-pressed={!muted}
+      onClick={() => setMuted(!muted)}
+    >
+      <svg viewBox="0 0 20 20" aria-hidden>
+        <path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" />
+        {muted ? (
+          <path d="M13 7.5l5 5M18 7.5l-5 5" />
+        ) : (
+          <path d="M13 7a4 4 0 0 1 0 6M15.5 4.5a7.5 7.5 0 0 1 0 11" />
+        )}
+      </svg>
+    </button>
+  )
+}
+
+function actionSound(prev: RunState, next: RunState, action: RunAction) {
+  if (next === prev) {
+    if (action.type !== 'next' && action.type !== 'searchWreck') sfx('error')
+    return
+  }
+  switch (action.type) {
+    case 'buy':
+      sfx('buy')
+      if (action.place) sfx('drop')
+      break
+    case 'place':
+    case 'unplace':
+      sfx('drop')
+      break
+    case 'sell':
+      sfx('sell')
+      break
+    case 'reroll':
+      sfx('reroll')
+      break
+    case 'repair':
+    case 'repairAll':
+      sfx('repair')
+      break
+    case 'fight':
+      sfx('launch')
+      break
+  }
 }
 
 /** Sends every meaningful player action to analytics (one event per action). */

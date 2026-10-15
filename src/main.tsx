@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import { initAnalytics } from './ui/analytics.ts'
 import { App } from './ui/App.tsx'
+import { initSound } from './ui/sound.ts'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -21,3 +22,4 @@ window.addEventListener('orientationchange', resetScroll)
 resetScroll()
 
 initAnalytics()
+initSound()

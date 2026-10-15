@@ -10,6 +10,7 @@ import { placedCells, rotateShape } from '../engine/index.ts'
 import { artSvg, moduleArt } from '../content/moduleArt.ts'
 import { silhouette } from '../content/ships.ts'
 import type { ModuleId } from '../content/modules.ts'
+import { flightMs, LASER_MS, SLUG_FLIGHT_MS } from './timing.ts'
 
 /**
  * Replays a battle log as an animation. Stateless with respect to time:
@@ -32,20 +33,6 @@ const INK = 0xeaf2ff
 const AMBER = 0xffd27a
 const RED = 0xff8a66
 
-const LASER_MS = 160
-const SLUG_FLIGHT_MS = 260
-const TRACER_FLIGHT_MS = 140
-const ROCKET_FLIGHT_MS = 650
-
-/** Projectile flight time by weapon (engine ids are 'defId#n'). */
-const flightMs = (source: string, damageType: string) =>
-  damageType === 'energy'
-    ? 0
-    : damageType === 'explosive'
-      ? ROCKET_FLIGHT_MS
-      : source.startsWith('machinegun#')
-        ? TRACER_FLIGHT_MS
-        : SLUG_FLIGHT_MS
 const HIT_FX_MS = 420
 const SHAKE_MS = 180
 const FLOAT_MS = 900

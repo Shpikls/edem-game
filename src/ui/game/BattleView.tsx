@@ -12,6 +12,8 @@ import { Sheet } from './Sheet.tsx'
 import { BattleEnd } from './BattleEnd.tsx'
 import { formatEvent } from './formatEvent.ts'
 import { def, engineLabel, shieldMax } from './describe.ts'
+import { flightMs } from '../../battle/timing.ts'
+import { sfx } from '../sound.ts'
 
 interface Props {
   run: RunState
@@ -199,9 +201,49 @@ export function BattleView({ run, battle, onNext }: Props) {
     sceneRef.current?.render(t)
   }, [t])
 
+  // Sounds follow the timeline; a skip (big jump in t) stays silent.
+  const soundT = useRef(0)
+  useEffect(() => {
+    const from = soundT.current
+    soundT.current = t
+    if (t <= from || t - from > 400 || jump) return
+    const within = (at: number) => at > from && at <= t
+    for (const e of result.events) {
+      if (e.type === 'hit') {
+        const enemy = e.side === 'enemy'
+        const fire = e.t - flightMs(e.source, e.damageType)
+        if (within(fire)) {
+          const weapon = e.source.split('#')[0]
+          if (weapon === 'laser') sfx('laser', enemy)
+          else if (weapon === 'machinegun') sfx('machinegun', enemy)
+          else if (weapon === 'rocket') sfx('missile', enemy)
+          else sfx('railgun', enemy)
+        }
+        if (within(e.t)) {
+          if (e.absorbed > 0 && e.hullDamage === 0) sfx('hitShield')
+          else if (e.damageType === 'explosive') sfx('boom')
+          else sfx('hitHull')
+        }
+      } else if (e.type === 'overheat' && within(e.t)) sfx('overheat')
+      else if (e.type === 'destroyed' && within(e.t)) sfx('explosion')
+    }
+  }, [t]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => sfx('warp'), [])
+  useEffect(() => {
+    if (jump) sfx('jump')
+  }, [jump])
+  const countSec = countdown === null ? null : Math.ceil(countdown / 1000)
+  useEffect(() => {
+    if (countSec !== null && !jump) sfx('tick', countSec === 0)
+  }, [countSec]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const done = t >= result.durationMs || jumpedOut
   // "Next" waits for the wreck animation to play out.
   const finished = t >= result.durationMs + TAIL_MS - 100 || jumpedOut
+  useEffect(() => {
+    if (finished) sfx(result.winner === 'player' ? 'win' : 'lose')
+  }, [finished]) // eslint-disable-line react-hooks/exhaustive-deps
   const view = stateAt(battle, t)
   const log = result.events
     .filter((e) => e.t <= t && e.type !== 'shieldRegen')

@@ -27,6 +27,7 @@ import {
   type GridPreview,
 } from './gridHelpers.ts'
 import { HullGrid } from './HullGrid.tsx'
+import { sfx } from '../sound.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import {
   firstFit,
@@ -124,6 +125,7 @@ export function Shipyard({ run, dispatch }: Props) {
   }, [])
 
   const flashError = (uid: string) => {
+    sfx('error')
     setErrorUid(uid)
     window.setTimeout(() => setErrorUid((u) => (u === uid ? null : u)), 450)
   }
@@ -174,6 +176,7 @@ export function Shipyard({ run, dispatch }: Props) {
   const rotateSelected = () => {
     if (!selected || !selectedItem) return
     if (selected.kind === 'bench') {
+      sfx('rotate')
       setBenchRot((m) => ({
         ...m,
         [selected.uid]: nextRotation(m[selected.uid] ?? 0),
@@ -314,6 +317,8 @@ export function Shipyard({ run, dispatch }: Props) {
       const over = moved ? hitTest(e.clientX, e.clientY) : null
       // Entering the rotate zone turns the module by 90°; leave and re-enter to turn again.
       const entersRotate = over?.type === 'rotate' && d.over?.type !== 'rotate'
+      if (moved && !d.moved) sfx('pick')
+      if (entersRotate) sfx('rotate')
       update({
         ...d,
         moved,

@@ -218,6 +218,16 @@ input[type='checkbox'] {
   color: var(--ink-dim);
 }
 
+.sound-toggle svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
 .titleblock__tabs {
   display: flex;
   justify-content: flex-end;
