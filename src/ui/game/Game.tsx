@@ -7,6 +7,7 @@ import {
   type RunState,
 } from '../../engine/index.ts'
 import { RunOver, RUN_STARTED_KEY } from './RunOver.tsx'
+import { armedWeapons } from './readiness.ts'
 import { Settings } from './Settings.tsx'
 import { actionSounds } from './actionSounds.ts'
 import { track } from '../analytics.ts'
@@ -41,6 +42,9 @@ export function Game() {
   // The title screen shows on every launch (session only).
   const [splash, setSplash] = useState(true)
   const [settings, setSettings] = useState(false)
+  // Short message under the HUD (e.g. why "В бой" is not available).
+  const [notice, setNotice] = useState<string | null>(null)
+  const armed = armedWeapons(run) > 0
   const hasSave =
     run.phase !== 'over' &&
     (run.round > 1 || run.placed.length > 0 || run.bench.length > 0)
@@ -124,13 +128,28 @@ export function Game() {
         </div>
         {run.phase === 'shop' && (
           <button
-            className="stamp hud__fight"
-            onClick={() => dispatch({ type: 'fight' })}
+            className={`stamp hud__fight ${armed ? '' : 'is-blocked'}`}
+            aria-disabled={!armed}
+            onClick={() => {
+              if (armed) return dispatch({ type: 'fight' })
+              sfx('error')
+              track('fight_blocked', { round: run.round, gold: run.gold })
+              setNotice(
+                'Без оружия в бой нельзя: поставь на корабль хотя бы одно',
+              )
+              window.setTimeout(() => setNotice(null), 3000)
+            }}
           >
             В бой
           </button>
         )}
       </div>
+
+      {notice && run.phase === 'shop' && (
+        <p className="hud-notice" role="alert" onClick={() => setNotice(null)}>
+          {notice}
+        </p>
+      )}
 
       {run.phase === 'shop' && <Shipyard run={run} dispatch={dispatch} />}
       {run.phase === 'shop' && (run.salvage.length > 0 || cratePending) && (

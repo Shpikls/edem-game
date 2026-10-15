@@ -28,6 +28,7 @@ import {
 } from './gridHelpers.ts'
 import { HullGrid } from './HullGrid.tsx'
 import { sfx } from '../sound.ts'
+import { rerollNeedsConfirm } from './readiness.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import {
   firstFit,
@@ -146,6 +147,22 @@ export function Shipyard({ run, dispatch }: Props) {
   const [repairOpen, setRepairOpen] = useState(false)
   const label = labels(run)
   const { config, hull: fullHull } = runContext
+  // A reroll that would leave an unarmed ship broke takes a second tap.
+  const [rerollArmed, setRerollArmed] = useState(false)
+  const needsConfirm = rerollNeedsConfirm(run)
+  const reroll = () => {
+    if (needsConfirm && !rerollArmed) {
+      sfx('error')
+      setRerollArmed(true)
+      return
+    }
+    setRerollArmed(false)
+    dispatch({ type: 'reroll' })
+  }
+  const rerollWarning =
+    needsConfirm && rerollArmed
+      ? `точно? останется ${run.gold - config.rerollCost} зол. — на оружие не хватит`
+      : null
   const cracks = new Set(run.cracks)
   // Logic works on intact cells only; the grid still draws the full hull.
   const hull = fullHull.filter((c) => !cracks.has(`${c.x},${c.y}`))
@@ -738,17 +755,27 @@ export function Shipyard({ run, dispatch }: Props) {
               <span className="shop-aside">
                 <span className="gold">{run.gold} зол.</span>
                 <button
-                  className="shop__reroll-mini"
+                  className={`shop__reroll-mini ${rerollWarning ? 'is-warning' : ''}`}
                   disabled={!freeReroll && run.gold < config.rerollCost}
-                  onClick={() => dispatch({ type: 'reroll' })}
+                  onClick={reroll}
                   title={`обновить · ${config.rerollCost} зол.`}
                 >
-                  ⟳ {freeReroll ? 'страховка' : config.rerollCost}
+                  ⟳{' '}
+                  {rerollWarning
+                    ? 'точно?'
+                    : freeReroll
+                      ? 'страховка'
+                      : config.rerollCost}
                 </button>
               </span>
             }
             className={`shop-sheet ${dragging?.over?.type === 'sell' ? 'is-over' : ''}`}
           >
+            {rerollWarning && (
+              <p className="hud-notice" role="alert">
+                {rerollWarning}
+              </p>
+            )}
             <div data-drop="sell">
               {run.jumped && (
                 <p className="insurance">
@@ -812,13 +839,12 @@ export function Shipyard({ run, dispatch }: Props) {
               </div>
               <div className="add-row shop__actions">
                 <button
+                  className={rerollWarning ? 'is-warning' : ''}
                   disabled={!freeReroll && run.gold < config.rerollCost}
-                  onClick={() => dispatch({ type: 'reroll' })}
+                  onClick={reroll}
                 >
-                  обновить ·{' '}
-                  {freeReroll
-                    ? 'за счёт страховки'
-                    : `${config.rerollCost} зол.`}
+                  {rerollWarning ??
+                    `обновить · ${freeReroll ? 'за счёт страховки' : `${config.rerollCost} зол.`}`}
                 </button>
               </div>
               {ownedUid && dragging && (

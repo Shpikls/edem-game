@@ -4680,3 +4680,33 @@ button:disabled:hover {
   padding: 10px 36px 8px;
   animation: fadeIn 0.4s 2.1s both;
 }
+
+/* ── readiness hints ──────────────────────────────────── */
+
+.hud-notice {
+  position: fixed;
+  z-index: 96;
+  left: 50%;
+  top: max(84px, calc(env(safe-area-inset-top) + 76px));
+  transform: translateX(-50%);
+  width: min(92vw, 440px);
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--pencil-red);
+  background: var(--paper-deep);
+  color: var(--pencil-red);
+  font-size: 16px;
+  text-align: center;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.3);
+  animation: settingsIn 0.2s ease-out;
+}
+
+.hud .hud__fight.is-blocked {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+
+button.is-warning {
+  color: var(--pencil-red);
+  border-color: var(--pencil-red);
+}
