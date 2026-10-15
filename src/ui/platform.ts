@@ -60,10 +60,15 @@ export async function initPlatform(): Promise<void> {
         ? await (await import('./platforms/yandex.ts')).createYandex(setPaused)
         : await (await import('./platforms/vk.ts')).createVk(setPaused)
     if (!adapter) return
-    const cloud = await adapter.load(CLOUD_KEYS)
-    for (const [key, value] of Object.entries(cloud)) restore(key, value)
+    // Ads and pause work even if the cloud doesn't (e.g. VK Storage on OK).
     host = adapter
-    setStorageSink(queueCloudSave)
+    try {
+      const cloud = await adapter.load(CLOUD_KEYS)
+      for (const [key, value] of Object.entries(cloud)) restore(key, value)
+      setStorageSink(queueCloudSave)
+    } catch (e) {
+      console.warn('cloud saves unavailable, playing on local saves', e)
+    }
   } catch (e) {
     console.warn(`${platform} SDK unavailable`, e)
   }
