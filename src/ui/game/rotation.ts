@@ -49,6 +49,41 @@ export function rotateInPlace(
 }
 
 /**
+ * Like firstFit, but the module's middle lands as close to the hull's centre
+ * as possible (tap-to-buy: the new module shows up in plain sight).
+ */
+export function centerFit(
+  hull: Shape,
+  others: readonly Placement[],
+  id: string,
+  shape: Shape,
+): Placement | null {
+  const cx =
+    (Math.min(...hull.map((c) => c.x)) + Math.max(...hull.map((c) => c.x))) / 2
+  const cy =
+    (Math.min(...hull.map((c) => c.y)) + Math.max(...hull.map((c) => c.y))) / 2
+  let best: Placement | null = null
+  let bestD = Infinity
+  for (const c of hull)
+    for (let r = 0; r < 4; r++) {
+      const rotation = r as Rotation
+      const candidate = { id, shape, rotation, x: c.x, y: c.y }
+      if (!checkPlacement(hull, others, candidate).ok) continue
+      const cells = placedCells(candidate)
+      const mx = cells.reduce((a, p) => a + p.x, 0) / cells.length
+      const my = cells.reduce((a, p) => a + p.y, 0) / cells.length
+      // ties: unrotated first, then row by row
+      const d =
+        Math.hypot(mx - cx, my - cy) + r * 1e-3 + (c.y * 10 + c.x) * 1e-6
+      if (d < bestD) {
+        bestD = d
+        best = candidate
+      }
+    }
+  return best
+}
+
+/**
  * Where to drop a module so that it covers the cell under the pointer.
  * Prefers the current rotation and grab point; otherwise any rotation and any
  * of the shape's cells under the pointer. Falls back to the preferred (invalid)

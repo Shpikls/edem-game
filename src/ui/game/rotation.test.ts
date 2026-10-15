@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { parseShape, placedCells } from '../../engine/index.ts'
-import { resolveDrop, rotateInPlace } from './rotation.ts'
+import { centerFit, resolveDrop, rotateInPlace } from './rotation.ts'
 
 const HULL = parseShape(['#####', '#####', '#####'])
 const BAR = parseShape(['###'])
@@ -40,4 +40,24 @@ test('four turns return a module to its original cells (no drift)', () => {
   let p: ReturnType<typeof rotateInPlace> = start
   for (let i = 0; i < 4; i++) p = rotateInPlace(HULL, [], p!)
   expect(placedCells(p!)).toEqual(placedCells(start))
+})
+
+describe('centerFit', () => {
+  const hull = parseShape(['#####', '#####', '#####'])
+  const shape = parseShape(['#'])
+
+  test('puts a new module in the middle of the hull', () => {
+    expect(centerFit(hull, [], 'n', shape)).toMatchObject({ x: 2, y: 1 })
+  })
+
+  test('takes the nearest free spot when the middle is taken', () => {
+    const mid = { id: 'm', shape, rotation: 0 as const, x: 2, y: 1 }
+    const spot = centerFit(hull, [mid], 'n', shape)!
+    expect(Math.abs(spot.x - 2) + Math.abs(spot.y - 1)).toBe(1)
+  })
+
+  test('no room → null', () => {
+    const big = parseShape(['######'])
+    expect(centerFit(hull, [], 'n', big)).toBeNull()
+  })
 })

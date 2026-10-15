@@ -32,6 +32,7 @@ import { sfx } from '../sound.ts'
 import { track } from '../analytics.ts'
 import { ModuleArt } from './ModuleArt.tsx'
 import {
+  centerFit,
   firstFit,
   nextRotation,
   resolveDrop,
@@ -276,7 +277,21 @@ export function Shipyard({ run, dispatch }: Props) {
   const tap = (d: Drag) => {
     const s = d.source
     if (s.kind === 'shop') {
-      dispatch({ type: 'buy', slot: s.slot })
+      // A tap buys straight onto the hull (free spot nearest the centre): players expect a
+      // bought module to fight. No room → the bench, as before.
+      const defId = run.shop[s.slot]
+      const spot = defId
+        ? centerFit(hull, placementsExcept(null), '__new__', def(defId).shape)
+        : null
+      dispatch(
+        spot
+          ? {
+              type: 'buy',
+              slot: s.slot,
+              place: { x: spot.x, y: spot.y, rotation: spot.rotation },
+            }
+          : { type: 'buy', slot: s.slot },
+      )
       return
     }
     setSelected((cur) =>

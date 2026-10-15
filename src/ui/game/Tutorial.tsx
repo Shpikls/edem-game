@@ -28,7 +28,7 @@ interface HintCtx {
 const HINTS: Hint[] = [
   {
     id: 'drag',
-    text: 'Перетащи оружие из снабжения на корабль. Модули занимают клетки — места мало.',
+    text: 'Нажми на оружие в снабжении — оно встанет на корабль. Или перетащи его в нужное место. Модули занимают клетки — места мало.',
     target: '.shop',
     when: (r, c) =>
       !c.inBattle && !c.salvage && r.station && r.placed.length === 0,
@@ -36,10 +36,11 @@ const HINTS: Hint[] = [
   },
   {
     id: 'rotate',
-    text: 'Модуль не влезает? Проведи его через ↻ — он повернётся. Тап по модулю на корабле — меню.',
+    text: 'Находки лежат на складе — перетащи их на корабль. Не влезает? Проведи модуль через ↻ — он повернётся. Тап по модулю на корабле — меню.',
     target: '.rotate-zone',
-    when: (r, c) =>
-      !c.inBattle && !c.salvage && r.placed.length > 0 && r.round === 1,
+    // Taught when there is something to place (a tap in the shop places by itself).
+    when: (r, c) => !c.inBattle && !c.salvage && r.bench.length > 0,
+    doneWhen: (r) => r.round > 1 && r.bench.length === 0,
   },
   {
     id: 'fight',
@@ -62,7 +63,7 @@ const HINTS: Hint[] = [
   },
   {
     id: 'bench',
-    text: 'Магазин — на станции раз в 2 боя. Сейчас расставь находки со склада на корабль.',
+    text: 'Магазин — на станции раз в 2 боя, между ними воюешь тем, что есть и что нашёл.',
     target: '.bench',
     when: (r, c) => !c.inBattle && !c.salvage && !r.station && r.round > 1,
   },

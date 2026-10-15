@@ -4287,20 +4287,12 @@ button:disabled:hover {
 
 @media (max-width: 760px) {
   .tut {
-    top: auto;
-    bottom: max(30px, calc(env(safe-area-inset-bottom) + 14px));
+    /* top: the shop and the bench at the bottom stay free to use */
     padding: 8px 10px;
   }
 
   .tut__text {
     font-size: 13.5px;
-  }
-
-  /* when the shop is the target, keep the hint at the top so it doesn't cover it */
-  .game:has(.shop.tut-target) .tut,
-  .game:has(.bench.tut-target) .tut {
-    bottom: auto;
-    top: max(78px, calc(env(safe-area-inset-top) + 70px));
   }
 }
 
@@ -4708,4 +4700,13 @@ button:disabled:hover {
 
 button.is-blocked {
   opacity: 0.45;
+}
+
+/* hints never block the game: taps and drags pass through, only the buttons catch */
+.tut {
+  pointer-events: none;
+}
+
+.tut__actions button {
+  pointer-events: auto;
 }
