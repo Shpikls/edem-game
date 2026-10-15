@@ -55,8 +55,8 @@ type Over =
 
 interface Drag {
   source: Source
-  /** Touch on a bench item: a sideways swipe scrolls the bench instead. */
-  benchTouch: boolean
+  /** Touch on a bench item: a sideways swipe scrolls the strip instead of dragging. */
+  bench: BenchSwipe | null
   defId: string
   rotation: Rotation
   /** Grabbed cell, relative to the rotated shape's top-left. */
@@ -71,6 +71,38 @@ interface Drag {
 type Selection = { kind: 'hull' | 'bench'; uid: string } | null
 
 const DRAG_THRESHOLD = 6
+
+/**
+ * The bench strip is scrolled by hand: browsers (especially in-app ones)
+ * disagree on native panning over touch-action: none items.
+ */
+interface BenchSwipe {
+  el: HTMLElement
+  startLeft: number
+  scrolling: boolean
+  /** Recent finger positions for the fling velocity. */
+  samples: { x: number; t: number }[]
+}
+
+let flingFrame = 0
+
+/** Keeps the strip gliding after a quick swipe, slowing down. */
+function fling(b: BenchSwipe) {
+  const recent = b.samples.filter((p) => p.t >= b.samples.at(-1)!.t - 90)
+  const first = recent[0]
+  const last = recent.at(-1)
+  if (!first || !last || last.t === first.t) return
+  let v = (last.x - first.x) / (last.t - first.t) // px per ms
+  let prev = performance.now()
+  const step = (now: number) => {
+    const dt = now - prev
+    prev = now
+    b.el.scrollLeft -= v * dt
+    v *= Math.pow(0.94, dt / 16)
+    if (Math.abs(v) > 0.02) flingFrame = requestAnimationFrame(step)
+  }
+  flingFrame = requestAnimationFrame(step)
+}
 
 /** 'ЛЗ-1', 'ЛЗ-2' … numbered per type across bench + hull, in purchase order. */
 function labels(run: RunState): Map<string, string> {
@@ -308,9 +340,22 @@ export function Shipyard({ run, dispatch }: Props) {
       if (!d) return
       const dx = e.clientX - d.start.x
       const dy = e.clientY - d.start.y
-      // Sideways on the bench strip = scrolling (the browser pans it via
-      // touch-action: pan-x and then cancels the pointer); only up/down picks up.
-      if (d.benchTouch && !d.moved && Math.abs(dx) > Math.abs(dy)) return
+      // Sideways on the bench strip scrolls it; up/down picks the module up.
+      const b = d.bench
+      if (b && !d.moved) {
+        if (
+          !b.scrolling &&
+          Math.hypot(dx, dy) > DRAG_THRESHOLD &&
+          Math.abs(dx) >= Math.abs(dy)
+        )
+          b.scrolling = true
+        if (b.scrolling) {
+          b.el.scrollLeft = b.startLeft - dx
+          b.samples.push({ x: e.clientX, t: e.timeStamp })
+          if (b.samples.length > 8) b.samples.shift()
+          return
+        }
+      }
       const moved = d.moved || Math.hypot(dx, dy) > DRAG_THRESHOLD
       // Auto-scroll near the viewport edges so long drags work on phones.
       if (moved) {
@@ -337,10 +382,11 @@ export function Shipyard({ run, dispatch }: Props) {
       const d = dragRef.current
       update(null)
       if (!d) return
-      if (d.moved) dropRef.current(d)
+      if (d.bench?.scrolling) fling(d.bench)
+      else if (d.moved) dropRef.current(d)
       else tapRef.current(d)
     }
-    // Cancelled (e.g. the browser took the touch to scroll): no tap, no drop.
+    // Cancelled by the system: no tap, no drop.
     const onCancel = () => update(null)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -365,13 +411,24 @@ export function Shipyard({ run, dispatch }: Props) {
     grab = { x: 0, y: 0 },
   ) => {
     if (e.button !== 0) return
-    const benchTouch = source.kind === 'bench' && e.pointerType !== 'mouse'
-    // preventDefault would also stop the bench from scrolling natively
-    if (!benchTouch) e.preventDefault()
+    e.preventDefault()
+    cancelAnimationFrame(flingFrame)
+    const strip = (e.currentTarget as HTMLElement).closest<HTMLElement>(
+      '.bench',
+    )
+    const bench =
+      source.kind === 'bench' && e.pointerType !== 'mouse' && strip
+        ? {
+            el: strip,
+            startLeft: strip.scrollLeft,
+            scrolling: false,
+            samples: [],
+          }
+        : null
     const at = { x: e.clientX, y: e.clientY }
     update({
       source,
-      benchTouch,
+      bench,
       defId,
       rotation,
       grab,

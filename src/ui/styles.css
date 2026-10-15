@@ -4680,8 +4680,3 @@ button:disabled:hover {
   padding: 10px 36px 8px;
   animation: fadeIn 0.4s 2.1s both;
 }
-
-/* phones: swipe the bench strip sideways to scroll it, drag up to pick a module */
-.yard .bench .bench__item {
-  touch-action: pan-x;
-}
