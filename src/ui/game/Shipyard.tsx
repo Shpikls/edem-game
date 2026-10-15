@@ -55,6 +55,8 @@ type Over =
 
 interface Drag {
   source: Source
+  /** Touch on a bench item: a sideways swipe scrolls the bench instead. */
+  benchTouch: boolean
   defId: string
   rotation: Rotation
   /** Grabbed cell, relative to the rotated shape's top-left. */
@@ -304,10 +306,12 @@ export function Shipyard({ run, dispatch }: Props) {
     const onMove = (e: PointerEvent) => {
       const d = dragRef.current
       if (!d) return
-      const moved =
-        d.moved ||
-        Math.hypot(e.clientX - d.start.x, e.clientY - d.start.y) >
-          DRAG_THRESHOLD
+      const dx = e.clientX - d.start.x
+      const dy = e.clientY - d.start.y
+      // Sideways on the bench strip = scrolling (the browser pans it via
+      // touch-action: pan-x and then cancels the pointer); only up/down picks up.
+      if (d.benchTouch && !d.moved && Math.abs(dx) > Math.abs(dy)) return
+      const moved = d.moved || Math.hypot(dx, dy) > DRAG_THRESHOLD
       // Auto-scroll near the viewport edges so long drags work on phones.
       if (moved) {
         const edge = 70
@@ -336,13 +340,15 @@ export function Shipyard({ run, dispatch }: Props) {
       if (d.moved) dropRef.current(d)
       else tapRef.current(d)
     }
+    // Cancelled (e.g. the browser took the touch to scroll): no tap, no drop.
+    const onCancel = () => update(null)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('pointercancel', onCancel)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('pointercancel', onCancel)
     }
   }, [drag === null, update]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -359,10 +365,13 @@ export function Shipyard({ run, dispatch }: Props) {
     grab = { x: 0, y: 0 },
   ) => {
     if (e.button !== 0) return
-    e.preventDefault()
+    const benchTouch = source.kind === 'bench' && e.pointerType !== 'mouse'
+    // preventDefault would also stop the bench from scrolling natively
+    if (!benchTouch) e.preventDefault()
     const at = { x: e.clientX, y: e.clientY }
     update({
       source,
+      benchTouch,
       defId,
       rotation,
       grab,
