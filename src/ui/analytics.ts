@@ -23,6 +23,29 @@ const umamiId = import.meta.env.VITE_UMAMI_ID ?? ''
 const umamiUrl = import.meta.env.VITE_UMAMI_URL ?? ''
 /** Build (short commit id) on every session and event: stats split by version. */
 const build = __BUILD__
+const TAG_KEY = 'analytics.tag'
+
+/**
+ * Marks non-player sessions so they can be filtered out: `?tag=dev` (kept on
+ * this device; `?tag=` clears it), automated browsers → 'autotest'.
+ */
+function readTag(): string {
+  try {
+    const fromUrl = new URLSearchParams(location.search).get('tag')
+    if (fromUrl !== null) {
+      if (fromUrl) localStorage.setItem(TAG_KEY, fromUrl)
+      else localStorage.removeItem(TAG_KEY)
+    }
+    const stored = localStorage.getItem(TAG_KEY)
+    if (stored) return stored
+  } catch {
+    /* storage blocked */
+  }
+  return navigator.webdriver ? 'autotest' : ''
+}
+const tag = typeof window === 'undefined' ? '' : readTag()
+/** Sent with the session and every event. */
+const meta: Record<string, string> = tag ? { build, tag } : { build }
 
 export function initAnalytics(): void {
   if (typeof window === 'undefined') return
@@ -31,7 +54,7 @@ export function initAnalytics(): void {
     s.defer = true
     s.src = `${umamiUrl}/script.js`
     s.dataset.websiteId = umamiId
-    s.onload = () => window.umami?.identify({ build })
+    s.onload = () => window.umami?.identify(meta)
     document.head.appendChild(s)
     // Session replay + heatmaps (enabled per website in Umami).
     const rec = document.createElement('script')
@@ -51,7 +74,7 @@ export function initAnalytics(): void {
     s.src = 'https://mc.yandex.ru/metrika/tag.js'
     document.head.appendChild(s)
     ym(ymId, 'init', {
-      params: { build },
+      params: meta,
       clickmap: true,
       trackLinks: true,
       accurateTrackBounce: true,
@@ -65,7 +88,7 @@ export function track(
   event: string,
   params: Record<string, unknown> = {},
 ): void {
-  const data = { ...params, build }
+  const data = { ...params, ...meta }
   if (ymId) window.ym?.(ymId, 'reachGoal', event, data)
   if (umamiId) window.umami?.track(event, data)
 }
