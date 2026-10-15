@@ -53,6 +53,8 @@ jobs:
         with:
           name: edem-vk
           path: dist-vk
+      # VK can load the game by URL: publish the VK build at /edem-game/vk/
+      - run: cp -r dist-vk dist/vk
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
