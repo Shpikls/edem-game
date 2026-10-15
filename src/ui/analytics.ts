@@ -1,6 +1,6 @@
 /**
- * Analytics: Yandex Metrika (VITE_YM_ID) and/or GoatCounter (VITE_GC_CODE).
- * Each is enabled only when its build env is set; otherwise a no-op.
+ * Analytics: Umami (self-hosted, VITE_UMAMI_ID + VITE_UMAMI_URL) and/or
+ * Yandex Metrika (VITE_YM_ID). Each is on only when its build env is set.
  */
 
 type Ym = ((id: number, method: string, ...args: unknown[]) => void) & {
@@ -11,47 +11,44 @@ type Ym = ((id: number, method: string, ...args: unknown[]) => void) & {
 declare global {
   interface Window {
     ym?: Ym
-    goatcounter?: {
-      count?: (v: { path: string; title?: string; event?: boolean }) => void
-    }
+    umami?: { track: (event: string, data?: Record<string, unknown>) => void }
   }
 }
 
-const id = Number(import.meta.env.VITE_YM_ID ?? 0)
-const gcCode = import.meta.env.VITE_GC_CODE ?? ''
+const ymId = Number(import.meta.env.VITE_YM_ID ?? 0)
+const umamiId = import.meta.env.VITE_UMAMI_ID ?? ''
+const umamiUrl = import.meta.env.VITE_UMAMI_URL ?? ''
 
 export function initAnalytics(): void {
   if (typeof window === 'undefined') return
-  if (gcCode) {
-    const gc = document.createElement('script')
-    gc.async = true
-    gc.dataset.goatcounter = `https://${gcCode}.goatcounter.com/count`
-    gc.src = 'https://gc.zgo.at/count.js'
-    document.head.appendChild(gc)
+  if (umamiId && umamiUrl) {
+    const s = document.createElement('script')
+    s.defer = true
+    s.src = `${umamiUrl}/script.js`
+    s.dataset.websiteId = umamiId
+    document.head.appendChild(s)
   }
-  if (!id || window.ym) return
-  const ym: Ym = (...args: unknown[]) => {
-    ;(ym.a = ym.a ?? []).push(args)
+  if (ymId && !window.ym) {
+    const ym: Ym = (...args: unknown[]) => {
+      ;(ym.a = ym.a ?? []).push(args)
+    }
+    ym.l = Date.now()
+    window.ym = ym
+    const s = document.createElement('script')
+    s.async = true
+    s.src = 'https://mc.yandex.ru/metrika/tag.js'
+    document.head.appendChild(s)
+    ym(ymId, 'init', {
+      clickmap: true,
+      trackLinks: true,
+      accurateTrackBounce: true,
+      webvisor: true,
+    })
   }
-  ym.l = Date.now()
-  window.ym = ym
-  const script = document.createElement('script')
-  script.async = true
-  script.src = 'https://mc.yandex.ru/metrika/tag.js'
-  document.head.appendChild(script)
-  ym(id, 'init', {
-    clickmap: true,
-    trackLinks: true,
-    accurateTrackBounce: true,
-    webvisor: true,
-  })
 }
 
-/** Records a game event as a Metrika goal with parameters. */
-export function track(
-  goal: string,
-  params: Record<string, unknown> = {},
-): void {
-  if (!id) return
-  window.ym?.(id, 'reachGoal', goal, params)
+/** Records a game event (Umami event / Metrika goal) with parameters. */
+export function track(event: string, data: Record<string, unknown> = {}): void {
+  if (ymId) window.ym?.(ymId, 'reachGoal', event, data)
+  if (umamiId) window.umami?.track(event, data)
 }
