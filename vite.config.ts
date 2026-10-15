@@ -7,6 +7,9 @@ export default defineConfig({
   // relative asset paths: works on GitHub Pages subpath and itch.io
   base: './',
   plugins: [react()],
+  define: {
+    __BUILD__: JSON.stringify(process.env.GITHUB_SHA?.slice(0, 7) ?? 'dev'),
+  },
   test: {
     include: ['src/**/*.test.ts'],
   },

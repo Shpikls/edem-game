@@ -4,6 +4,9 @@
  */
 
 const MUTE_KEY = 'sound.muted'
+const VOLUME_KEY = 'sound.volume'
+/** Master gain at 100% volume. */
+const FULL_GAIN = 0.6
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
@@ -26,6 +29,12 @@ const storage = {
   },
 }
 let muted = storage.get(MUTE_KEY) === '1'
+const storedVolume = Number(storage.get(VOLUME_KEY) ?? 1)
+let volume =
+  Number.isFinite(storedVolume) && storedVolume >= 0 && storedVolume <= 1
+    ? storedVolume
+    : 1
+const gain = () => (muted ? 0 : FULL_GAIN * volume)
 const listeners = new Set<() => void>()
 const lastPlayed = new Map<string, number>()
 
@@ -40,7 +49,7 @@ function audio(): AudioContext | null {
   const comp = ctx.createDynamicsCompressor()
   comp.connect(ctx.destination)
   master = ctx.createGain()
-  master.gain.value = muted ? 0 : 0.6
+  master.gain.value = gain()
   master.connect(comp)
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate)
   const data = noiseBuf.getChannelData(0)
@@ -72,12 +81,27 @@ export function isMuted(): boolean {
 export function setMuted(value: boolean): void {
   muted = value
   storage.set(MUTE_KEY, value ? '1' : '0')
-  if (master && ctx)
-    master.gain.setTargetAtTime(value ? 0 : 0.6, ctx.currentTime, 0.02)
+  applyGain()
+}
+
+export function getVolume(): number {
+  return volume
+}
+
+/** 0…1; the player hears the change right away. */
+export function setVolume(value: number): void {
+  volume = Math.min(1, Math.max(0, value))
+  storage.set(VOLUME_KEY, String(volume))
+  applyGain()
+}
+
+function applyGain() {
+  if (master && ctx) master.gain.setTargetAtTime(gain(), ctx.currentTime, 0.02)
   listeners.forEach((l) => l())
 }
 
-export function onMuteChange(listener: () => void): () => void {
+/** Mute or volume changed. */
+export function onSoundChange(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
@@ -347,6 +371,18 @@ const SOUNDS = {
   // — results / salvage —
   win: () => arp([523, 659, 784, 1047], 0.09, 'square', 0.07, 0.3),
   lose: () => arp([392, 311, 262, 196], 0.16, 'sawtooth', 0.07, 0.4),
+  runWon: () => {
+    arp([392, 523, 659, 784], 0.12, 'square', 0.07, 0.35)
+    arp([1047, 1319, 1568], 0.1, 'triangle', 0.1, 0.9)
+    // second phrase after the first
+    tone({ type: 'triangle', f0: 523, dur: 1.4, vol: 0.08, delay: 0.5 })
+    tone({ type: 'triangle', f0: 784, dur: 1.4, vol: 0.06, delay: 0.5 })
+  },
+  runLost: () => {
+    tone({ type: 'sawtooth', f0: 220, f1: 55, dur: 1.6, vol: 0.1, lp: 900 })
+    noise({ f0: 900, f1: 60, dur: 1.4, vol: 0.3 })
+    arp([294, 277, 262, 247], 0.28, 'triangle', 0.08, 0.6)
+  },
   scan: () => {
     tone({
       type: 'triangle',

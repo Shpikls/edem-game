@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import { runContext } from '../../content/run.ts'
 import {
   createRun,
@@ -6,10 +6,11 @@ import {
   type RunAction,
   type RunState,
 } from '../../engine/index.ts'
-import { Sheet } from './Sheet.tsx'
+import { RunOver } from './RunOver.tsx'
+import { Settings } from './Settings.tsx'
 import { actionSounds } from './actionSounds.ts'
 import { track } from '../analytics.ts'
-import { isMuted, onMuteChange, setMuted, sfx } from '../sound.ts'
+import { sfx } from '../sound.ts'
 import { usePersistentState } from '../usePersistentState.ts'
 import { BattleView } from './BattleView.tsx'
 import { SalvageScreen } from './SalvageScreen.tsx'
@@ -34,6 +35,7 @@ export function Game() {
   })
   // The title screen shows on every launch (session only).
   const [splash, setSplash] = useState(true)
+  const [settings, setSettings] = useState(false)
   const hasSave =
     run.phase !== 'over' &&
     (run.round > 1 || run.placed.length > 0 || run.bench.length > 0)
@@ -103,16 +105,17 @@ export function Game() {
             ))}
           </span>
           <button
-            className="link-button hud__restart"
-            title="новый забег"
-            onClick={() => {
-              if (confirm('Начать новый забег? Текущий пропадёт.'))
-                setRun(newRun())
-            }}
+            className="link-button hud__settings"
+            title="настройки"
+            aria-label="настройки"
+            onClick={() => setSettings(true)}
           >
-            ⟲
+            <svg viewBox="0 0 20 20" aria-hidden>
+              <circle cx="10" cy="10" r="2.6" />
+              <path d="M10 1.8v2.6M10 15.6v2.6M1.8 10h2.6M15.6 10h2.6M4.2 4.2l1.9 1.9M13.9 13.9l1.9 1.9M4.2 15.8l1.9-1.9M13.9 6.1l1.9-1.9" />
+              <circle cx="10" cy="10" r="5.6" />
+            </svg>
           </button>
-          <SoundToggle />
         </div>
         {run.phase === 'shop' && (
           <button
@@ -144,38 +147,20 @@ export function Game() {
       )}
 
       {run.phase === 'over' && (
-        <Sheet num="—" title="Забег окончен">
-          <p className="verdict-big">
-            {run.lives > 0 ? 'Корабль выстоял' : 'Корабль уничтожен'} · побед{' '}
-            {run.wins} из {run.round}
-          </p>
-          <button className="stamp" onClick={() => setRun(newRun())}>
-            Новый забег
-          </button>
-        </Sheet>
+        <RunOver run={run} onNewRun={() => setRun(newRun())} />
+      )}
+
+      {settings && (
+        <Settings
+          onClose={() => setSettings(false)}
+          onResetTutorial={() => {
+            track('tutorial_reset')
+            setTut(() => ({ on: true, done: [] }))
+          }}
+          onNewRun={() => setRun(newRun())}
+        />
       )}
     </div>
-  )
-}
-
-function SoundToggle() {
-  const muted = useSyncExternalStore(onMuteChange, isMuted)
-  return (
-    <button
-      className="link-button sound-toggle"
-      title={muted ? 'включить звук' : 'выключить звук'}
-      aria-pressed={!muted}
-      onClick={() => setMuted(!muted)}
-    >
-      <svg viewBox="0 0 20 20" aria-hidden>
-        <path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" />
-        {muted ? (
-          <path d="M13 7.5l5 5M18 7.5l-5 5" />
-        ) : (
-          <path d="M13 7a4 4 0 0 1 0 6M15.5 4.5a7.5 7.5 0 0 1 0 11" />
-        )}
-      </svg>
-    </button>
   )
 }
 

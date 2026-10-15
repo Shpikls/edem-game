@@ -218,16 +218,6 @@ input[type='checkbox'] {
   color: var(--ink-dim);
 }
 
-.sound-toggle svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linejoin: round;
-}
-
 .titleblock__tabs {
   display: flex;
   justify-content: flex-end;
@@ -2672,9 +2662,19 @@ button:disabled:hover {
   color: var(--ink);
 }
 
-.hud__restart {
-  font-size: 18px;
+.hud__settings {
+  display: flex;
+  padding: 2px;
   text-decoration: none;
+}
+
+.hud__settings svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
 }
 
 .hud .hud__fight {
@@ -4322,4 +4322,293 @@ button:disabled:hover {
 /* the jump note spans the whole shipyard grid instead of taking a column */
 .shipyard > .jump-note {
   grid-column: 1 / -1;
+}
+
+/* ── settings ─────────────────────────────────────────── */
+
+.settings {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 16px
+    max(26px, calc(env(safe-area-inset-bottom) + 10px));
+  background: rgb(6 22 46 / 0.6);
+  animation: fade 0.2s;
+}
+
+.settings__sheet {
+  position: relative;
+  width: min(100%, 420px);
+  margin: 0;
+  padding: 30px 20px 16px;
+  background: var(--paper);
+  animation: settingsIn 0.25s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+@keyframes settingsIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.settings__close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 18px;
+  text-decoration: none;
+  padding: 4px 8px;
+}
+
+.settings__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px dashed var(--ink-faint);
+}
+
+.settings__row.is-off {
+  opacity: 0.45;
+}
+
+.settings__label {
+  flex: 0 0 92px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.settings__row button {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 15px;
+}
+
+.settings__range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--ink);
+}
+
+.settings__value {
+  width: 42px;
+  text-align: right;
+  font: 500 14px var(--font-mono);
+}
+
+.settings__danger {
+  color: var(--pencil-red);
+  border-color: var(--pencil-red);
+}
+
+.settings__build {
+  margin: 14px 0 0;
+  font: 11px var(--font-mono);
+  color: var(--ink-dim);
+  text-align: right;
+}
+
+/* two-position control: the active half is filled with ink */
+.segmented {
+  display: flex;
+}
+
+.settings__row .segmented button {
+  min-width: 64px;
+  padding: 6px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 14px;
+}
+
+.segmented button + button {
+  margin-left: -1px;
+}
+
+.segmented button.is-active {
+  background: var(--ink);
+  color: var(--paper-deep);
+}
+
+/* ── run over (debrief) ───────────────────────────────── */
+
+.runover {
+  --end: #06d6a0;
+  --cell: clamp(16px, min(7vw, 3.1svh), 36px);
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* never clip the top when the sheet is taller than the screen */
+  justify-content: safe center;
+  gap: min(12px, 1.4svh);
+  padding: max(20px, env(safe-area-inset-top)) 18px
+    max(26px, calc(env(safe-area-inset-bottom) + 10px));
+  background: var(--paper);
+  overflow: hidden auto;
+  text-align: center;
+}
+
+.runover--lost {
+  --end: var(--pencil-red);
+}
+
+.runover > * {
+  position: relative;
+}
+
+.runover__grid {
+  position: absolute !important;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--ink-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridIn 1s ease-out both;
+}
+
+.runover__kicker {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  animation: fadeIn 0.4s both;
+}
+
+.runover__stamp {
+  font-size: clamp(26px, min(9vw, 5.6svh), 56px);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--end);
+  border: 5px double var(--end);
+  padding: 8px 22px 6px;
+  transform: rotate(-3deg);
+  background: rgb(16 57 106 / 0.7);
+  box-shadow: 0 0 40px rgb(0 0 0 / 0.25);
+  animation: runStamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) 0.15s both;
+}
+
+@keyframes runStamp {
+  from {
+    opacity: 0;
+    transform: rotate(-3deg) scale(2.2);
+  }
+}
+
+.runover__pips {
+  display: flex;
+  gap: 6px;
+}
+
+.runover__pips i {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--ink-dim);
+  transform: rotate(45deg);
+  animation: pipIn 0.25s both;
+}
+
+.runover__pips i.is-won {
+  border-color: var(--end);
+  background: var(--end);
+  box-shadow: 0 0 8px var(--end);
+}
+
+@keyframes pipIn {
+  from {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.2);
+  }
+}
+
+.runover__ship {
+  pointer-events: none;
+  animation: fadeIn 0.6s 0.4s both;
+}
+
+.runover__ship .ship-frame {
+  margin: 0 auto;
+}
+
+.runover--lost .runover__ship {
+  filter: saturate(0.3) sepia(0.4) hue-rotate(-30deg);
+  animation:
+    fadeIn 0.6s 0.4s both,
+    rattle 0.4s 0.6s;
+}
+
+.runover__stats {
+  width: min(100%, 340px);
+  margin: 0;
+}
+
+.runover__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: min(3px, 0.4svh) 0;
+  animation: runRow 0.3s both;
+}
+
+.runover__row::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  border-bottom: 1px dotted var(--ink-faint);
+}
+
+.runover__row dt {
+  order: 0;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.runover__row dd {
+  order: 2;
+  margin: 0;
+  font: 500 16px var(--font-mono);
+}
+
+@keyframes runRow {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+.runover__record {
+  margin: 2px 0 0;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  animation: fadeIn 0.4s 1.9s both;
+}
+
+.runover__record.is-new {
+  color: var(--pencil-amber);
+  animation:
+    fadeIn 0.4s 1.9s both,
+    blink 1.4s 2.3s ease-in-out infinite;
+}
+
+.runover .runover__again {
+  margin: 6px 0 0;
+  font-size: 24px;
+  padding: 10px 36px 8px;
+  animation: fadeIn 0.4s 2.1s both;
 }
