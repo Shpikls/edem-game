@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { runContext } from '../../content/run.ts'
 import {
   createRun,
@@ -12,6 +12,8 @@ import { Settings } from './Settings.tsx'
 import { actionSounds } from './actionSounds.ts'
 import { track } from '../analytics.ts'
 import { sfx } from '../sound.ts'
+import { save } from '../storage.ts'
+import { setGameplay, showFullscreenAd } from '../platform.ts'
 import { usePersistentState } from '../usePersistentState.ts'
 import { BattleView } from './BattleView.tsx'
 import { SalvageScreen } from './SalvageScreen.tsx'
@@ -19,17 +21,16 @@ import { Shipyard } from './Shipyard.tsx'
 import { Splash } from './Splash.tsx'
 import { Tutorial, type TutorialState } from './Tutorial.tsx'
 
+/** Interstitial after every N-th mission (Yandex Games build only). */
+const AD_EVERY_ROUNDS = 3
+
 const freshRun = (): RunState =>
   createRun(runContext, Math.floor(Math.random() * 2 ** 31))
 
 /** A run the player actually starts (counted in analytics). */
 const newRun = (): RunState => {
   track('run_start')
-  try {
-    localStorage.setItem(RUN_STARTED_KEY, String(Date.now()))
-  } catch {
-    /* no run timer */
-  }
+  save(RUN_STARTED_KEY, String(Date.now()))
   return freshRun()
 }
 
@@ -45,6 +46,9 @@ export function Game() {
   // Short message under the HUD (e.g. why "В бой" is not available).
   const [notice, setNotice] = useState<string | null>(null)
   const armed = armedWeapons(run) > 0
+  // Tell the platform when the player is actually playing.
+  const playing = !splash && !settings && run.phase !== 'over'
+  useEffect(() => setGameplay(playing), [playing])
   const hasSave =
     run.phase !== 'over' &&
     (run.round > 1 || run.placed.length > 0 || run.bench.length > 0)
@@ -166,12 +170,20 @@ export function Game() {
           key={`${run.round}`}
           run={run}
           battle={run.lastBattle}
-          onNext={() => dispatch({ type: 'next' })}
+          onNext={() => {
+            // An interstitial every few missions, right after the player's tap.
+            if (run.round % AD_EVERY_ROUNDS === 0)
+              void showFullscreenAd().then(() => dispatch({ type: 'next' }))
+            else dispatch({ type: 'next' })
+          }}
         />
       )}
 
       {run.phase === 'over' && (
-        <RunOver run={run} onNewRun={() => setRun(newRun())} />
+        <RunOver
+          run={run}
+          onNewRun={() => void showFullscreenAd().then(() => setRun(newRun()))}
+        />
       )}
 
       {settings && (
@@ -222,6 +234,9 @@ function report(prev: RunState, next: RunState, action: RunAction) {
         tier: prev.shopTiers[action.slot] ?? 1,
         toHull: Boolean(action.place),
       })
+      break
+    case 'adReroll':
+      track('ad_reroll', base)
       break
     case 'reroll':
       track('reroll', { ...base, free: prev.freeRerolls > 0 })

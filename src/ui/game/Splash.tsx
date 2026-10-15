@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { gameReady } from '../platform.ts'
 import { ShipGlyph } from './ShipGlyph.tsx'
 
 /** Title screen: blueprint intro animation, then start / continue. */
@@ -14,6 +15,8 @@ export function Splash({
   onStart: (withTutorial: boolean) => void
 }) {
   const [skipped, setSkipped] = useState(false)
+  // Interactive from the first frame: the platform can drop its loader.
+  useEffect(() => gameReady(), [])
   const [tutorial, setTutorial] = useState(tutorialDefault)
   return (
     <div

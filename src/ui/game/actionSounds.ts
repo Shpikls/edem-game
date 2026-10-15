@@ -20,6 +20,7 @@ export function actionSounds(
     case 'sell':
       return ['sell']
     case 'reroll':
+    case 'adReroll':
       return ['reroll']
     case 'repair':
     case 'repairAll':

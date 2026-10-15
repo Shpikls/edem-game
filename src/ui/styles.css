@@ -4747,3 +4747,18 @@ button.is-blocked {
 .coach {
   z-index: 140;
 }
+
+/* a game, not a page: no text selection or long-press callouts */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.shop__ad-reroll {
+  margin-left: 6px;
+  padding: 3px 8px;
+  font-size: 13px;
+  color: var(--pencil-amber);
+  border-color: var(--pencil-amber);
+}

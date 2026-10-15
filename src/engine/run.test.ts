@@ -449,3 +449,19 @@ describe('reroll lock (no weapon, not enough gold for one)', () => {
     )
   })
 })
+
+describe('ad reroll', () => {
+  test('a new shop for free, gold and insurance untouched', () => {
+    const s = { ...createRun(ctx, 5), gold: 0, freeRerolls: 1 }
+    const next = reduceRun(ctx, s, { type: 'adReroll' })
+    expect(next).not.toBe(s)
+    expect(next.gold).toBe(0)
+    expect(next.freeRerolls).toBe(1)
+    expect(next.rngState).not.toBe(s.rngState)
+  })
+
+  test('only at a station', () => {
+    const s = { ...createRun(ctx, 5), station: false }
+    expect(reduceRun(ctx, s, { type: 'adReroll' })).toBe(s)
+  })
+})

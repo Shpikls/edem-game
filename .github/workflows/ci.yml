@@ -33,6 +33,16 @@ jobs:
           # Umami (self-hosted at stats.shpikls.ru)
           VITE_UMAMI_ID: ${{ vars.UMAMI_ID }}
           VITE_UMAMI_URL: ${{ vars.UMAMI_URL }}
+      # Yandex Games archive (download it from the run's artifacts)
+      - run: npm run build:yandex
+        env:
+          VITE_YM_ID: ${{ vars.YM_ID }}
+          VITE_UMAMI_ID: ${{ vars.UMAMI_ID }}
+          VITE_UMAMI_URL: ${{ vars.UMAMI_URL }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: edem-yandex
+          path: dist-yandex
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:

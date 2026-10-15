@@ -13,6 +13,7 @@ import { BattleEnd } from './BattleEnd.tsx'
 import { formatEvent } from './formatEvent.ts'
 import { def, engineLabel, shieldMax } from './describe.ts'
 import { battleCues } from './battleSounds.ts'
+import { isPaused } from '../platform.ts'
 import { sfx } from '../sound.ts'
 
 interface Props {
@@ -147,10 +148,20 @@ export function BattleView({ run, battle, onNext }: Props) {
 
   useEffect(() => {
     let frame = 0
-    const start = performance.now()
+    let start = performance.now()
     let last = start
     let introDone = false
     const tick = (now: number) => {
+      // Platform pause (ads): time stands still, every clock shifts forward.
+      if (isPaused()) {
+        const gap = now - last
+        last = now
+        start += gap
+        if (cdStart.current !== null) cdStart.current += gap
+        if (jumpRef.current) jumpRef.current.start += gap
+        frame = requestAnimationFrame(tick)
+        return
+      }
       const dt = (now - last) * speedRef.current
       last = now
       const intro = now - start

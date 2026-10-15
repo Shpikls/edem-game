@@ -3,6 +3,8 @@
  * oscillators / filtered noise bursts, so it is easy to tweak by ear.
  */
 
+import { load, save } from './storage.ts'
+
 const MUTE_KEY = 'sound.muted'
 const VOLUME_KEY = 'sound.volume'
 /** Master gain at 100% volume. */
@@ -11,25 +13,8 @@ const FULL_GAIN = 0.6
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
 let noiseBuf: AudioBuffer | null = null
-// Storage may be blocked (private mode, sandboxed iframes): sound must not break the game.
-const storage = {
-  get: (k: string) => {
-    try {
-      return localStorage.getItem(k)
-    } catch {
-      return null
-    }
-  },
-  set: (k: string, v: string) => {
-    try {
-      localStorage.setItem(k, v)
-    } catch {
-      /* not persisted */
-    }
-  },
-}
-let muted = storage.get(MUTE_KEY) === '1'
-const storedVolume = Number(storage.get(VOLUME_KEY) ?? 1)
+let muted = load(MUTE_KEY) === '1'
+const storedVolume = Number(load(VOLUME_KEY) ?? 1)
 let volume =
   Number.isFinite(storedVolume) && storedVolume >= 0 && storedVolume <= 1
     ? storedVolume
@@ -61,7 +46,8 @@ function audio(): AudioContext | null {
 export function initSound(): void {
   const unlock = () => {
     const c = audio()
-    if (c && c.state === 'suspended' && !document.hidden) void c.resume()
+    if (c && c.state === 'suspended' && !document.hidden && !audioPaused)
+      void c.resume()
   }
   // Older iOS Safari only unlocks audio on touchend/click.
   for (const type of ['pointerdown', 'touchend', 'click', 'keydown'])
@@ -70,8 +56,18 @@ export function initSound(): void {
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return
     if (document.hidden) void ctx.suspend()
-    else void ctx.resume()
+    else if (!audioPaused) void ctx.resume()
   })
+}
+
+let audioPaused = false
+
+/** Platform pause (ads): silence without touching the player's settings. */
+export function setAudioPaused(value: boolean): void {
+  audioPaused = value
+  if (!ctx) return
+  if (value) void ctx.suspend()
+  else if (!document.hidden) void ctx.resume()
 }
 
 export function isMuted(): boolean {
@@ -80,7 +76,7 @@ export function isMuted(): boolean {
 
 export function setMuted(value: boolean): void {
   muted = value
-  storage.set(MUTE_KEY, value ? '1' : '0')
+  save(MUTE_KEY, value ? '1' : '0')
   applyGain()
 }
 
@@ -91,7 +87,7 @@ export function getVolume(): number {
 /** 0…1; the player hears the change right away. */
 export function setVolume(value: number): void {
   volume = Math.min(1, Math.max(0, value))
-  storage.set(VOLUME_KEY, String(volume))
+  save(VOLUME_KEY, String(volume))
   applyGain()
 }
 

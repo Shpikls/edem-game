@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { runContext } from '../../content/run.ts'
 import type { RunState } from '../../engine/index.ts'
 import { sfx } from '../sound.ts'
+import { load, save } from '../storage.ts'
 import { HullGrid } from './HullGrid.tsx'
 
 const RECORD_KEY = 'record.v1'
@@ -10,7 +11,7 @@ export const RUN_STARTED_KEY = 'run.startedAt'
 
 function runMinutes(): string | null {
   try {
-    const started = Number(localStorage.getItem(RUN_STARTED_KEY))
+    const started = Number(load(RUN_STARTED_KEY))
     if (!started) return null
     const s = Math.max(0, Math.round((Date.now() - started) / 1000))
     // A run left open for days says nothing about play time.
@@ -23,7 +24,7 @@ function runMinutes(): string | null {
 
 function readRecord(): number {
   try {
-    return Number(localStorage.getItem(RECORD_KEY) ?? 0) || 0
+    return Number(load(RECORD_KEY) ?? 0) || 0
   } catch {
     return 0
   }
@@ -46,11 +47,7 @@ export function RunOver({
   const record = Math.max(prevRecord, run.wins)
 
   useEffect(() => {
-    try {
-      localStorage.setItem(RECORD_KEY, String(record))
-    } catch {
-      /* not persisted */
-    }
+    save(RECORD_KEY, String(record))
     sfx(won ? 'runWon' : 'runLost')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

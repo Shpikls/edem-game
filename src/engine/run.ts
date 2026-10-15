@@ -141,6 +141,8 @@ export type RunAction =
       place?: { x: number; y: number; rotation: Rotation }
     }
   | { type: 'reroll' }
+  /** A reroll paid for by watching an ad (no gold, no insurance spent). */
+  | { type: 'adReroll' }
   | { type: 'place'; uid: string; x: number; y: number; rotation: Rotation }
   | { type: 'unplace'; uid: string }
   | { type: 'sell'; uid: string }
@@ -449,7 +451,14 @@ export function reduceRun(
     )
   }
 
-  const stationOnly = ['buy', 'reroll', 'sell', 'repair', 'repairAll']
+  const stationOnly = [
+    'buy',
+    'reroll',
+    'adReroll',
+    'sell',
+    'repair',
+    'repairAll',
+  ]
   if (!state.station && stationOnly.includes(action.type)) return state
 
   switch (action.type) {
@@ -480,6 +489,15 @@ export function reduceRun(
         ...state,
         gold: state.gold - (free ? 0 : ctx.config.rerollCost),
         freeRerolls: Math.max(0, state.freeRerolls - 1),
+        shop: shop.shop,
+        shopTiers: shop.shopTiers,
+        rngState: shop.rngState,
+      }
+    }
+    case 'adReroll': {
+      const shop = rollShop(ctx, state.rngState, state.round)
+      return {
+        ...state,
         shop: shop.shop,
         shopTiers: shop.shopTiers,
         rngState: shop.rngState,
