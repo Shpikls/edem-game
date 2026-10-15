@@ -1,6 +1,6 @@
 /**
- * Yandex Metrika: page views plus game goals (reachGoal). The counter id comes
- * from the build env VITE_YM_ID; without it everything is a no-op (local dev).
+ * Analytics: Yandex Metrika (VITE_YM_ID) and/or GoatCounter (VITE_GC_CODE).
+ * Each is enabled only when its build env is set; otherwise a no-op.
  */
 
 type Ym = ((id: number, method: string, ...args: unknown[]) => void) & {
@@ -11,13 +11,25 @@ type Ym = ((id: number, method: string, ...args: unknown[]) => void) & {
 declare global {
   interface Window {
     ym?: Ym
+    goatcounter?: {
+      count?: (v: { path: string; title?: string; event?: boolean }) => void
+    }
   }
 }
 
 const id = Number(import.meta.env.VITE_YM_ID ?? 0)
+const gcCode = import.meta.env.VITE_GC_CODE ?? ''
 
 export function initAnalytics(): void {
-  if (!id || typeof window === 'undefined' || window.ym) return
+  if (typeof window === 'undefined') return
+  if (gcCode) {
+    const gc = document.createElement('script')
+    gc.async = true
+    gc.dataset.goatcounter = `https://${gcCode}.goatcounter.com/count`
+    gc.src = 'https://gc.zgo.at/count.js'
+    document.head.appendChild(gc)
+  }
+  if (!id || window.ym) return
   const ym: Ym = (...args: unknown[]) => {
     ;(ym.a = ym.a ?? []).push(args)
   }

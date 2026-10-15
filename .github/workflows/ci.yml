@@ -30,6 +30,8 @@ jobs:
         env:
           # Yandex Metrika counter id (repo variable YM_ID); empty = no analytics
           VITE_YM_ID: ${{ vars.YM_ID }}
+          # GoatCounter site code (repo variable GC_CODE); empty = off
+          VITE_GC_CODE: ${{ vars.GC_CODE }}
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
