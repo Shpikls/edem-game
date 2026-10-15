@@ -54,8 +54,12 @@ export function Game() {
       <Splash
         hasSave={hasSave}
         tutorialDefault={tut.on && tut.done.length === 0}
-        onContinue={() => setSplash(false)}
+        onContinue={() => {
+          track('continue', { round: run.round })
+          setSplash(false)
+        }}
         onStart={(withTutorial) => {
+          track('tutorial_choice', { on: withTutorial })
           setTut(() => ({ on: withTutorial, done: [] }))
           setRun(newRun())
           setSplash(false)
@@ -148,34 +152,92 @@ export function Game() {
   )
 }
 
-/** Sends the interesting transitions to analytics. */
+/** Sends every meaningful player action to analytics (one event per action). */
 function report(prev: RunState, next: RunState, action: RunAction) {
-  if (action.type === 'fight' && next.lastBattle) {
-    const b = next.lastBattle
-    track(
-      b.result.winner === 'player'
-        ? 'battle_win'
-        : b.autoJump
-          ? 'battle_jump'
-          : 'battle_lost',
-      {
-        round: prev.round,
-        seconds: Math.round(b.result.durationMs / 1000),
-        modules: prev.placed.length,
-      },
-    )
+  const base = { round: prev.round, gold: prev.gold }
+  const name = (uid: string) =>
+    [...prev.bench, ...prev.placed, ...next.bench, ...next.placed].find(
+      (i) => i.uid === uid,
+    )?.defId
+  switch (action.type) {
+    case 'fight': {
+      const b = next.lastBattle
+      if (!b) break
+      track(
+        b.result.winner === 'player'
+          ? 'battle_win'
+          : b.autoJump
+            ? 'battle_jump'
+            : 'battle_lost',
+        {
+          ...base,
+          seconds: Math.round(b.result.durationMs / 1000),
+          modules: b.fielded.length,
+          cracks: prev.cracks.length,
+          jumpsLeft: next.jumps,
+        },
+      )
+      break
+    }
+    case 'buy':
+      track('buy', {
+        ...base,
+        module: prev.shop[action.slot],
+        tier: prev.shopTiers[action.slot] ?? 1,
+        toHull: Boolean(action.place),
+      })
+      break
+    case 'reroll':
+      track('reroll', { ...base, free: prev.freeRerolls > 0 })
+      break
+    case 'place': {
+      const fromBench = prev.bench.some((b) => b.uid === action.uid)
+      track(fromBench ? 'place' : 'move', {
+        ...base,
+        module: name(action.uid),
+        x: action.x,
+        y: action.y,
+        rotation: action.rotation,
+      })
+      break
+    }
+    case 'unplace':
+      track('to_bench', { ...base, module: name(action.uid) })
+      break
+    case 'sell':
+      track('sell', {
+        ...base,
+        module: name(action.uid),
+        got: next.gold - prev.gold,
+      })
+      break
+    case 'repair':
+    case 'repairAll':
+      track('repair', {
+        ...base,
+        mode: action.type === 'repair' ? 'cell' : 'auto',
+        cells: prev.cracks.length - next.cracks.length,
+        spent: prev.gold - next.gold,
+      })
+      break
+    case 'searchWreck': {
+      const found = next.bench.at(-1)
+      track('salvage', {
+        ...base,
+        module: found?.defId,
+        tier: found?.tier ?? 1,
+      })
+      break
+    }
+    case 'next':
+      track('next', { ...base, station: next.station, jumped: next.jumped })
+      break
   }
-  if (action.type === 'buy')
-    track('buy', { round: prev.round, module: prev.shop[action.slot] })
-  if (action.type === 'repair' || action.type === 'repairAll')
-    track('repair', {
-      round: prev.round,
-      cells: prev.cracks.length - next.cracks.length,
-    })
   if (next.phase === 'over' && prev.phase !== 'over')
     track(next.lives > 0 ? 'run_won' : 'run_lost', {
       round: next.round,
       wins: next.wins,
       jumpsLeft: next.jumps,
+      modules: next.placed.length,
     })
 }

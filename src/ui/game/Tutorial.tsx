@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { RunState } from '../../engine/index.ts'
+import { track } from '../analytics.ts'
 
 /** Tutorial progress lives apart from the run: it survives new runs. */
 export interface TutorialState {
@@ -125,13 +126,19 @@ export function Tutorial({
       <p className="tut__text">{hint.text}</p>
       <div className="tut__actions">
         <button
-          onClick={() => setTut((t) => ({ ...t, done: [...t.done, hint.id] }))}
+          onClick={() => {
+            track('tutorial_ok', { hint: hint.id, round: run.round })
+            setTut((t) => ({ ...t, done: [...t.done, hint.id] }))
+          }}
         >
           понятно
         </button>
         <button
           className="link-button"
-          onClick={() => setTut((t) => ({ ...t, on: false }))}
+          onClick={() => {
+            track('tutorial_skip', { hint: hint.id, round: run.round })
+            setTut((t) => ({ ...t, on: false }))
+          }}
         >
           пропустить обучение
         </button>

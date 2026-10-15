@@ -27,6 +27,12 @@ export function initAnalytics(): void {
     s.src = `${umamiUrl}/script.js`
     s.dataset.websiteId = umamiId
     document.head.appendChild(s)
+    // Session replay + heatmaps (enabled per website in Umami).
+    const rec = document.createElement('script')
+    rec.defer = true
+    rec.src = `${umamiUrl}/recorder.js`
+    rec.dataset.websiteId = umamiId
+    document.head.appendChild(rec)
   }
   if (ymId && !window.ym) {
     const ym: Ym = (...args: unknown[]) => {
