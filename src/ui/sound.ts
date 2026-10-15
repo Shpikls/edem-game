@@ -8,7 +8,24 @@ const MUTE_KEY = 'sound.muted'
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
 let noiseBuf: AudioBuffer | null = null
-let muted = localStorage.getItem(MUTE_KEY) === '1'
+// Storage may be blocked (private mode, sandboxed iframes): sound must not break the game.
+const storage = {
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(k)
+    } catch {
+      return null
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v)
+    } catch {
+      /* not persisted */
+    }
+  },
+}
+let muted = storage.get(MUTE_KEY) === '1'
 const listeners = new Set<() => void>()
 const lastPlayed = new Map<string, number>()
 
@@ -37,8 +54,9 @@ export function initSound(): void {
     const c = audio()
     if (c && c.state === 'suspended' && !document.hidden) void c.resume()
   }
-  window.addEventListener('pointerdown', unlock, true)
-  window.addEventListener('keydown', unlock, true)
+  // Older iOS Safari only unlocks audio on touchend/click.
+  for (const type of ['pointerdown', 'touchend', 'click', 'keydown'])
+    window.addEventListener(type, unlock, true)
   // Silence in background tabs (also required by Yandex Games).
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return
@@ -53,7 +71,7 @@ export function isMuted(): boolean {
 
 export function setMuted(value: boolean): void {
   muted = value
-  localStorage.setItem(MUTE_KEY, value ? '1' : '0')
+  storage.set(MUTE_KEY, value ? '1' : '0')
   if (master && ctx)
     master.gain.setTargetAtTime(value ? 0 : 0.6, ctx.currentTime, 0.02)
   listeners.forEach((l) => l())

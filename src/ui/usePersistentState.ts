@@ -14,7 +14,11 @@ export function usePersistentState<T>(key: string, initial: T | (() => T)) {
     }
   })
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(value))
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch {
+      // storage blocked or full: the game keeps working, just without saves
+    }
   }, [key, value])
   return [value, setValue] as const
 }

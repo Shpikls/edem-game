@@ -7,6 +7,7 @@ import {
   type RunState,
 } from '../../engine/index.ts'
 import { Sheet } from './Sheet.tsx'
+import { actionSounds } from './actionSounds.ts'
 import { track } from '../analytics.ts'
 import { isMuted, onMuteChange, setMuted, sfx } from '../sound.ts'
 import { usePersistentState } from '../usePersistentState.ts'
@@ -38,14 +39,15 @@ export function Game() {
     (run.round > 1 || run.placed.length > 0 || run.bench.length > 0)
   // Keeps the crate screen up through the reveal after the last crate is opened.
   const [cratePending, setCratePending] = useState(false)
-  const dispatch = (action: RunAction) => {
-    actionSound(run, reduceRun(runContext, run, action), action)
+  // Side effects live next to the reducer call so it runs once per action
+  // (StrictMode's dev double call is absorbed by sfx throttling).
+  const dispatch = (action: RunAction) =>
     setRun((s) => {
       const next = reduceRun(runContext, s, action)
+      for (const name of actionSounds(s, next, action)) sfx(name)
       if (next !== s) report(s, next, action)
       return next
     })
-  }
   const { config } = runContext
   // During a battle the outcome isn't final yet (the player may still jump out):
   // show the values from before the fight until "Next".
@@ -175,36 +177,6 @@ function SoundToggle() {
       </svg>
     </button>
   )
-}
-
-function actionSound(prev: RunState, next: RunState, action: RunAction) {
-  if (next === prev) {
-    if (action.type !== 'next' && action.type !== 'searchWreck') sfx('error')
-    return
-  }
-  switch (action.type) {
-    case 'buy':
-      sfx('buy')
-      if (action.place) sfx('drop')
-      break
-    case 'place':
-    case 'unplace':
-      sfx('drop')
-      break
-    case 'sell':
-      sfx('sell')
-      break
-    case 'reroll':
-      sfx('reroll')
-      break
-    case 'repair':
-    case 'repairAll':
-      sfx('repair')
-      break
-    case 'fight':
-      sfx('launch')
-      break
-  }
 }
 
 /** Sends every meaningful player action to analytics (one event per action). */
