@@ -64,14 +64,28 @@ const meta: Record<string, string> = {
   ...(tag ? { tag } : {}),
 }
 
+/**
+ * What the player actually sees — Umami's `screen` is the whole device, not
+ * the host's frame: the visible area and the hull cell size it gives (px).
+ */
+function viewInfo(): { viewport: string; cell: number } {
+  const probe = document.createElement('div')
+  probe.style.cssText = 'position:absolute;visibility:hidden;width:var(--cell)'
+  document.body.appendChild(probe)
+  const cell = Math.round(probe.getBoundingClientRect().width)
+  probe.remove()
+  return { viewport: `${innerWidth}x${innerHeight}`, cell }
+}
+
 export function initAnalytics(): void {
   if (typeof window === 'undefined') return
+  const session = { ...meta, ...viewInfo() }
   if (umamiId && umamiUrl) {
     const s = document.createElement('script')
     s.defer = true
     s.src = `${umamiUrl}/script.js`
     s.dataset.websiteId = umamiId
-    s.onload = () => window.umami?.identify(meta)
+    s.onload = () => window.umami?.identify(session)
     document.head.appendChild(s)
     // Session replay + heatmaps (enabled per website in Umami).
     const rec = document.createElement('script')
@@ -91,7 +105,7 @@ export function initAnalytics(): void {
     s.src = 'https://mc.yandex.ru/metrika/tag.js'
     document.head.appendChild(s)
     ym(ymId, 'init', {
-      params: meta,
+      params: session,
       clickmap: true,
       trackLinks: true,
       accurateTrackBounce: true,
