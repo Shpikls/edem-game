@@ -5,6 +5,10 @@ import '@fontsource/barlow-condensed/500.css'
 import '@fontsource/barlow-condensed/600.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
+// Barlow has no Cyrillic: Russian text takes this narrow face instead of a
+// wide system one (phones have no Arial Narrow).
+import '@fontsource/pt-sans-narrow/cyrillic-400.css'
+import '@fontsource/pt-sans-narrow/cyrillic-700.css'
 import { initAnalytics } from './ui/analytics.ts'
 import { App } from './ui/App.tsx'
 import { initPlatform, isPaused, onPauseChange } from './ui/platform.ts'

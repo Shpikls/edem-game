@@ -157,6 +157,7 @@ export function Shipyard({ run, dispatch }: Props) {
   const [autoHover, setAutoHover] = useState(false)
   // Phones: the repair panel floats over the yard and opens from the 🔧 button.
   const [repairOpen, setRepairOpen] = useState(false)
+  const [repairFlash, setRepairFlash] = useState(false)
   const label = labels(run)
   const { config, hull: fullHull } = runContext
   // No weapon anywhere and a reroll would leave too little for one: locked.
@@ -404,11 +405,13 @@ export function Shipyard({ run, dispatch }: Props) {
         }
       }
       const moved = d.moved || Math.hypot(dx, dy) > DRAG_THRESHOLD
-      // Auto-scroll near the viewport edges so long drags work on phones.
+      // Auto-scroll near the viewport edges so long drags work (the game
+      // scrolls inside #root, not the window).
       if (moved) {
         const edge = 70
-        if (e.clientY < edge) window.scrollBy(0, -14)
-        else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 14)
+        const page = document.getElementById('root')
+        if (e.clientY < edge) page?.scrollBy(0, -14)
+        else if (e.clientY > window.innerHeight - edge) page?.scrollBy(0, 14)
       }
       const over = moved ? hitTest(e.clientX, e.clientY) : null
       // Entering the rotate zone turns the module by 90°; leave and re-enter to turn again.
@@ -522,8 +525,14 @@ export function Shipyard({ run, dispatch }: Props) {
   const autoPreview = new Set(repairOrder(runContext, run).slice(0, repairable))
   const showPreview = autoArmed || autoHover
   const inRepair = repairMode !== null && run.cracks.length > 0
+  // A tap on a crack always answers: it is fixed, or the repair panel says why not.
   const onCrack = (cell: string) => {
-    if (run.station) dispatch({ type: 'repair', cell })
+    if (run.station && run.gold >= config.repairCost)
+      return dispatch({ type: 'repair', cell })
+    sfx('error')
+    setRepairOpen(true)
+    setRepairFlash(true)
+    window.setTimeout(() => setRepairFlash(false), 600)
   }
   const dragging = drag?.moved ? drag : null
   const ownedItem = ownedUid
@@ -552,7 +561,7 @@ export function Shipyard({ run, dispatch }: Props) {
               items={gridItems}
               cracks={cracks}
               disabled={disabled}
-              onCrackClick={inRepair || run.station ? onCrack : undefined}
+              onCrackClick={onCrack}
               repairMode={inRepair}
               repairPreview={showPreview ? autoPreview : undefined}
               preview={preview}
@@ -679,7 +688,9 @@ export function Shipyard({ run, dispatch }: Props) {
                 }}
               >
                 продать +{itemSellValue(runContext, run, selectedItem)}
-                {run.jumped && ' · полная цена'}
+                {run.jumped && (
+                  <span className="actions__sub">полная цена</span>
+                )}
               </button>
               <button className="link-button" onClick={() => setSelected(null)}>
                 ✕
@@ -698,7 +709,7 @@ export function Shipyard({ run, dispatch }: Props) {
           <div
             className={`repair-bar ${inRepair ? 'is-active' : ''} ${
               repairOpen || inRepair || autoArmed ? 'is-open' : ''
-            }`}
+            } ${repairFlash ? 'is-flash' : ''}`}
           >
             <button
               className="link-button repair-bar__close"
@@ -769,12 +780,19 @@ export function Shipyard({ run, dispatch }: Props) {
                     . Пока можно переставить модули в обход трещин.
                   </span>
                 )}
-                {run.station && repairable < run.cracks.length && (
+                {run.station && repairable === 0 && (
                   <span className="note">
-                    на весь ремонт нужно {run.cracks.length * config.repairCost}{' '}
-                    зол.
+                    не хватает золота: клетка — {config.repairCost} зол.
                   </span>
                 )}
+                {run.station &&
+                  repairable > 0 &&
+                  repairable < run.cracks.length && (
+                    <span className="note">
+                      на весь ремонт нужно{' '}
+                      {run.cracks.length * config.repairCost} зол.
+                    </span>
+                  )}
                 {autoArmed && (
                   <span className="note">
                     подсвечены клетки, которые будут отремонтированы

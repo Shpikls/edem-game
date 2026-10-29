@@ -11,7 +11,7 @@
   --pencil-amber: #ffd27a;
   --cell: clamp(34px, 12vw, 46px);
 
-  --font-label: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-label: 'Barlow Condensed', 'PT Sans Narrow', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   color-scheme: dark;
@@ -43,7 +43,23 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+}
+
+/* The game scrolls inside #root, never the page: hosts embed it in frames
+   that don't scroll (VK web loads it with scrolling="no"). */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
+#root {
+  overflow-y: auto;
 }
 
 ::selection {
@@ -4761,4 +4777,65 @@ body {
   font-size: 13px;
   color: var(--pencil-amber);
   border-color: var(--pencil-amber);
+}
+
+/* a tap on a crack that can't be fixed now points at the repair panel */
+.repair-bar.is-flash {
+  animation: repairFlash 0.6s ease-out;
+}
+
+@keyframes repairFlash {
+  from {
+    background-color: rgb(255 138 102 / 0.35);
+  }
+}
+
+.actions__sub::before {
+  content: '· ';
+}
+
+/* Phones: the module menu fits any width — ✕ in the corner, labels wrap */
+@media (max-width: 760px) {
+  .actions__what {
+    padding-right: 34px;
+  }
+
+  .actions .link-button {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    flex: none;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+  }
+
+  .actions button:not(.link-button) {
+    flex: 1 1 0;
+    min-width: 0;
+    height: auto;
+    min-height: 40px;
+    padding: 4px;
+    flex-direction: column;
+    gap: 2px;
+    white-space: normal;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .actions__sub {
+    font-size: 10px;
+    opacity: 0.8;
+  }
+
+  .actions__sub::before {
+    content: none;
+  }
+
+  /* the open repair panel says why a crack can't be fixed yet */
+  .repair-bar.is-open .note {
+    display: block;
+    flex-basis: 100%;
+    font-size: 13px;
+  }
 }
