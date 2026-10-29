@@ -4839,3 +4839,15 @@ body {
     font-size: 13px;
   }
 }
+
+/* Phones: the bench strip scrolls by swipe or wheel — a scrollbar would eat
+   its height, crop the items and push the vertical title out */
+@media (max-width: 760px) {
+  .yard .bench {
+    scrollbar-width: none;
+  }
+
+  .yard .bench::-webkit-scrollbar {
+    display: none;
+  }
+}

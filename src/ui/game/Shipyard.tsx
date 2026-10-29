@@ -597,6 +597,11 @@ export function Shipyard({ run, dispatch }: Props) {
           <div
             className={`bench ${dragging?.over?.type === 'bench' ? 'is-over' : ''}`}
             data-drop="bench"
+            // phones: the strip has no scrollbar, a mouse wheel scrolls it sideways
+            onWheel={(e) => {
+              if (Math.abs(e.deltaY) > Math.abs(e.deltaX))
+                e.currentTarget.scrollLeft += e.deltaY
+            }}
           >
             <div className="bench__title">склад · {run.bench.length}</div>
             {run.bench.map((item) => {
