@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { runContext } from '../../content/run.ts'
 import type { RunState } from '../../engine/index.ts'
 import { sfx } from '../sound.ts'
-import { load, save } from '../storage.ts'
+import { load } from '../storage.ts'
 import { HullGrid } from './HullGrid.tsx'
+import { readRecord, saveRecord, winsWord } from './record.ts'
 
-const RECORD_KEY = 'record.v1'
 /** Wall-clock start of the current run (set when the player starts it). */
 export const RUN_STARTED_KEY = 'run.startedAt'
 
@@ -22,21 +22,15 @@ function runMinutes(): string | null {
   }
 }
 
-function readRecord(): number {
-  try {
-    return Number(load(RECORD_KEY) ?? 0) || 0
-  } catch {
-    return 0
-  }
-}
-
 /** End of a run: a debrief sheet with the final build, stats and record. */
 export function RunOver({
   run,
   onNewRun,
+  onMainMenu,
 }: {
   run: RunState
   onNewRun: () => void
+  onMainMenu: () => void
 }) {
   const { config, hull } = runContext
   const won = run.lives > 0
@@ -47,7 +41,7 @@ export function RunOver({
   const record = Math.max(prevRecord, run.wins)
 
   useEffect(() => {
-    save(RECORD_KEY, String(record))
+    saveRecord(record)
     sfx(won ? 'runWon' : 'runLost')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -136,21 +130,16 @@ export function RunOver({
 
       <p className={`runover__record ${newRecord ? 'is-new' : ''}`}>
         {newRecord
-          ? `новый рекорд · ${run.wins} ${plural(run.wins)}`
-          : `рекорд · ${record} ${plural(record)}`}
+          ? `новый рекорд · ${run.wins} ${winsWord(run.wins)}`
+          : `рекорд · ${record} ${winsWord(record)}`}
       </p>
 
       <button className="stamp runover__again" onClick={onNewRun}>
         Новый забег
       </button>
+      <button className="runover__menu" onClick={onMainMenu}>
+        Главное меню
+      </button>
     </div>
   )
-}
-
-function plural(n: number): string {
-  const d = n % 10
-  const dd = n % 100
-  if (d === 1 && dd !== 11) return 'победа'
-  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return 'победы'
-  return 'побед'
 }

@@ -93,8 +93,12 @@ function queueCloudSave(key: string) {
 
 // ── signals ──────────────────────────────────────────────────────────────────
 
-/** The title screen is interactive: the platform hides its loader. */
+let readySent = false
+
+/** The title screen is interactive: the platform hides its loader (once). */
 export function gameReady(): void {
+  if (readySent) return
+  readySent = true
   host?.ready()
 }
 

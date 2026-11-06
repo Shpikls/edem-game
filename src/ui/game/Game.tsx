@@ -8,6 +8,7 @@ import {
 } from '../../engine/index.ts'
 import { RunOver, RUN_STARTED_KEY } from './RunOver.tsx'
 import { armedWeapons } from './readiness.ts'
+import { Rules } from './Rules.tsx'
 import { Settings } from './Settings.tsx'
 import { actionSounds } from './actionSounds.ts'
 import { track } from '../analytics.ts'
@@ -40,14 +41,16 @@ export function Game() {
     on: true,
     done: [],
   })
-  // The title screen shows on every launch (session only).
+  // The main menu shows on every launch (session only); its intro plays once.
   const [splash, setSplash] = useState(true)
+  const [intro, setIntro] = useState(true)
   const [settings, setSettings] = useState(false)
+  const [rules, setRules] = useState(false)
   // Short message under the HUD (e.g. why "В бой" is not available).
   const [notice, setNotice] = useState<string | null>(null)
   const armed = armedWeapons(run) > 0
   // Tell the platform when the player is actually playing.
-  const playing = !splash && !settings && run.phase !== 'over'
+  const playing = !splash && !settings && !rules && run.phase !== 'over'
   useEffect(() => setGameplay(playing), [playing])
   const hasSave =
     run.phase !== 'over' &&
@@ -68,10 +71,18 @@ export function Game() {
   // show the values from before the fight until "Next".
   const shown =
     run.phase === 'battle' && run.lastBattle ? run.lastBattle.before : run
+  // Back to the main menu from anywhere in a run; the run stays saved.
+  const toMainMenu = () => {
+    track('main_menu', { round: run.round, phase: run.phase })
+    setSettings(false)
+    setIntro(false)
+    setSplash(true)
+  }
 
   if (splash)
     return (
       <Splash
+        intro={intro}
         hasSave={hasSave}
         tutorialDefault={tut.on && tut.done.length === 0}
         onContinue={() => {
@@ -119,14 +130,12 @@ export function Game() {
           </span>
           <button
             className="link-button hud__settings"
-            title="настройки"
-            aria-label="настройки"
+            title="меню"
+            aria-label="меню"
             onClick={() => setSettings(true)}
           >
             <svg viewBox="0 0 20 20" aria-hidden>
-              <circle cx="10" cy="10" r="2.6" />
-              <path d="M10 1.8v2.6M10 15.6v2.6M1.8 10h2.6M15.6 10h2.6M4.2 4.2l1.9 1.9M13.9 13.9l1.9 1.9M4.2 15.8l1.9-1.9M13.9 6.1l1.9-1.9" />
-              <circle cx="10" cy="10" r="5.6" />
+              <path d="M3 5h14M3 10h14M3 15h14" />
             </svg>
           </button>
         </div>
@@ -183,12 +192,20 @@ export function Game() {
         <RunOver
           run={run}
           onNewRun={() => void showFullscreenAd().then(() => setRun(newRun()))}
+          onMainMenu={toMainMenu}
         />
       )}
 
       {settings && (
         <Settings
+          title="Меню"
           onClose={() => setSettings(false)}
+          onMainMenu={toMainMenu}
+          onRules={() => {
+            track('menu', { open: 'rules' })
+            setSettings(false)
+            setRules(true)
+          }}
           onResetTutorial={() => {
             track('tutorial_reset')
             setTut(() => ({ on: true, done: [] }))
@@ -196,6 +213,7 @@ export function Game() {
           onNewRun={() => setRun(newRun())}
         />
       )}
+      {rules && <Rules onClose={() => setRules(false)} />}
     </div>
   )
 }

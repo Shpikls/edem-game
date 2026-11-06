@@ -9,15 +9,25 @@ import {
   sfx,
 } from '../sound.ts'
 
-/** Settings panel over the game: sound, tutorial, new run, build id. */
+/**
+ * Panel over the game: in a run it is the pause menu (main menu, rules, sound,
+ * tutorial, restart); from the title screen only the settings. Rows show when
+ * their handler is given.
+ */
 export function Settings({
+  title = 'Настройки',
   onClose,
+  onMainMenu,
+  onRules,
   onResetTutorial,
   onNewRun,
 }: {
+  title?: string
   onClose: () => void
-  onResetTutorial: () => void
-  onNewRun: () => void
+  onMainMenu?: () => void
+  onRules?: () => void
+  onResetTutorial?: () => void
+  onNewRun?: () => void
 }) {
   const muted = useSyncExternalStore(onSoundChange, isMuted)
   const volume = useSyncExternalStore(onSoundChange, getVolume)
@@ -28,12 +38,12 @@ export function Settings({
       <section
         className="sheet settings__sheet"
         role="dialog"
-        aria-label="Настройки"
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="sheet__title">
-          <span className="sheet__num">⚙</span>
-          Настройки
+          <span className="sheet__num">{onMainMenu ? '≡' : '⚙'}</span>
+          {title}
         </h2>
         <button
           className="settings__close link-button"
@@ -42,6 +52,17 @@ export function Settings({
         >
           ✕
         </button>
+
+        {(onMainMenu || onRules) && (
+          <nav className="settings__nav">
+            {onMainMenu && (
+              <button className="stamp" onClick={onMainMenu}>
+                Главное меню
+              </button>
+            )}
+            {onRules && <button onClick={onRules}>Как играть</button>}
+          </nav>
+        )}
 
         <div className="settings__row">
           <span className="settings__label">звук</span>
@@ -84,43 +105,47 @@ export function Settings({
           <b className="settings__value">{Math.round(volume * 100)}%</b>
         </label>
 
-        <div className="settings__row">
-          <span className="settings__label">обучение</span>
-          <button
-            onClick={() => {
-              onResetTutorial()
-              onClose()
-            }}
-          >
-            показать заново
-          </button>
-        </div>
-
-        <div className="settings__row">
-          <span className="settings__label">забег</span>
-          {confirming ? (
-            <div className="settings__confirm">
-              <p>Текущий забег пропадёт. Точно?</p>
-              <button
-                className="settings__yes"
-                onClick={() => {
-                  onNewRun()
-                  onClose()
-                }}
-              >
-                да, заново
-              </button>
-              <button onClick={() => setConfirming(false)}>отмена</button>
-            </div>
-          ) : (
+        {onResetTutorial && (
+          <div className="settings__row">
+            <span className="settings__label">обучение</span>
             <button
-              className="settings__danger"
-              onClick={() => setConfirming(true)}
+              onClick={() => {
+                onResetTutorial()
+                onClose()
+              }}
             >
-              ⟲ начать заново
+              показать заново
             </button>
-          )}
-        </div>
+          </div>
+        )}
+
+        {onNewRun && (
+          <div className="settings__row">
+            <span className="settings__label">забег</span>
+            {confirming ? (
+              <div className="settings__confirm">
+                <p>Текущий забег пропадёт. Точно?</p>
+                <button
+                  className="settings__yes"
+                  onClick={() => {
+                    onNewRun()
+                    onClose()
+                  }}
+                >
+                  да, заново
+                </button>
+                <button onClick={() => setConfirming(false)}>отмена</button>
+              </div>
+            ) : (
+              <button
+                className="settings__danger"
+                onClick={() => setConfirming(true)}
+              >
+                ⟲ начать заново
+              </button>
+            )}
+          </div>
+        )}
 
         <p className="settings__build">EDEM · сборка {__BUILD__}</p>
       </section>
