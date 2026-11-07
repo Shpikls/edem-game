@@ -842,7 +842,7 @@ export function Shipyard({ run, dispatch }: Props) {
                       })
                     }
                   >
-                    ▶ ⟳ даром
+                    ▶ ⟳ за рекламу
                   </button>
                 )}
               </span>
