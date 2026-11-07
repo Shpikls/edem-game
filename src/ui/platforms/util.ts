@@ -8,6 +8,17 @@ export function within<T>(p: Promise<T>, ms: number): Promise<T> {
   ])
 }
 
+/** Lets something happen at most once per `gapMs`, counted from the last `mark()`. */
+export function cooldown(gapMs: number, now: () => number = Date.now) {
+  let last = -Infinity
+  return {
+    ready: () => now() - last >= gapMs,
+    mark: () => {
+      last = now()
+    },
+  }
+}
+
 export function loadScript(src: string, timeoutMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     const s = document.createElement('script')

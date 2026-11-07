@@ -4,6 +4,7 @@
  * Everywhere else every call is a harmless no-op.
  */
 import type { PlatformAdapter } from './platforms/types.ts'
+import { cooldown } from './platforms/util.ts'
 import { load, restore, setStorageSink } from './storage.ts'
 
 export type PlatformName = 'yandex' | 'vk' | 'web'
@@ -115,9 +116,18 @@ export function setGameplay(active: boolean): void {
 
 export const adsAvailable = () => host !== null
 
+/**
+ * No interstitial within a minute of the previous ad, rewarded included
+ * (VK rule 5.1.5.2: never back to back, at most once per 30 s). Otherwise a
+ * loss on an ad mission shows one after the battle and another on "new run".
+ */
+const adGap = cooldown(60_000)
+
 /** Interstitial between runs/missions; resolves when it's over (or skipped). */
 export function showFullscreenAd(): Promise<void> {
-  return host ? host.fullscreenAd() : Promise.resolve()
+  if (!host || !adGap.ready()) return Promise.resolve()
+  adGap.mark() // a second call while this one is open is skipped too
+  return host.fullscreenAd().finally(adGap.mark)
 }
 
 /** Whether to offer a rewarded video at all (the host has one to show). */
@@ -127,5 +137,5 @@ export function rewardedReady(): Promise<boolean> {
 
 /** Rewarded video; true when the player earned the reward. */
 export function showRewardedAd(): Promise<boolean> {
-  return host ? host.rewardedAd() : Promise.resolve(false)
+  return host ? host.rewardedAd().finally(adGap.mark) : Promise.resolve(false)
 }

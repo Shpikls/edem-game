@@ -22,7 +22,7 @@ import { Shipyard } from './Shipyard.tsx'
 import { Splash } from './Splash.tsx'
 import { Tutorial, type TutorialState } from './Tutorial.tsx'
 
-/** Interstitial after every N-th mission (Yandex Games build only). */
+/** Interstitial after every N-th mission (platform builds only). */
 const AD_EVERY_ROUNDS = 3
 
 const freshRun = (): RunState =>
